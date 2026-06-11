@@ -1,0 +1,4 @@
+#NOTE: This is a Maven Resolver internal implementation file, its format can be changed without prior notice.
+#Tue Jun 09 23:39:55 CST 2026
+@default-aliyun-maven-https\://maven.aliyun.com/repository/public/.lastUpdated=1781019595767
+https\://maven.aliyun.com/repository/public/.error=Could not transfer artifact org.apache.maven.plugins\:maven-resources-plugin\:pom\:3.3.1 from/to aliyun-maven (https\://maven.aliyun.com/repository/public)\: E\:\\MCserver\\MMM\\\u4E34\u65F6\u6587\u4EF6\u5939\\mmm-flight\\.m2\\repository\\org\\apache\\maven\\plugins\\maven-resources-plugin\\3.3.1\\maven-resources-plugin-3.3.1.pom.1302494104080272023.tmp.7288988593321051499.tmp

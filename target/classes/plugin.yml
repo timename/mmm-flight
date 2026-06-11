@@ -1,0 +1,26 @@
+name: MMMFlight
+version: 1.5.6
+main: local.mmm.flight.MMMFlightPlugin
+api-version: "1.21"
+author: Xiaomenxin
+softdepend:
+  - PlaceholderAPI
+  - LuckPerms
+commands:
+  mfly:
+    description: Toggle personal flight
+    usage: /mfly
+  flight:
+    description: Flight point administration
+    usage: /flight <balance|add|set|clear|reload>
+permissions:
+  mmmflight.use:
+    default: true
+  mmmflight.admin:
+    default: op
+  mmmflight.bypass.consume:
+    default: op
+  mmmflight.bypass.world:
+    default: op
+  mmmflight.bypass.server:
+    default: op

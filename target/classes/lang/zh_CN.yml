@@ -1,0 +1,21 @@
+# =========================================================
+# MMMFlight 简体中文语言文件
+# 支持颜色符号 &
+# =========================================================
+
+no-permission: "&c你没有权限执行这个操作。"
+player-only: "&c这个命令只能由玩家执行。"
+reloaded: "&aMMMFlight 配置已重载。"
+flight-enabled: "&a飞行已开启。"
+flight-disabled: "&e飞行已关闭。"
+not-allowed-here: "&c当前服务器或世界不允许飞行。"
+no-points: "&c飞行点数不足，已关闭飞行。"
+balance-self: "&a你的飞行点数: &f%points%&a/&f%max%"
+balance-other: "&a%player% 的飞行点数: &f%points%&a/&f%max%"
+added: "&a已给 %player% 增加 %amount% 点飞行点数，当前: %points%"
+set: "&a已将 %player% 的飞行点数设置为 %points%"
+cleared: "&a已清空 %player% 的飞行点数。"
+invalid-number: "&c请输入有效数字。"
+player-not-found: "&c找不到该玩家。"
+player-not-joined: "&c该玩家从未进过服务器，无法定位 UUID。"
+actionbar: "&b飞行点数: &f%points%&7/&f%max%"

@@ -1,0 +1,135 @@
+# =========================================================
+# MMMFlight 主配置文件
+# 作者: Xiaomenxin
+# 版本: 1.5.6
+# =========================================================
+#
+# 说明:
+# 1. 这是安装到每一个 Purpur 子服中的插件配置。
+# 2. Velocity 端不直接加载这个插件，由各个子服各自读取配置。
+# 3. 如果你开启了 MySQL 跨服同步，请确保所有子服连接的是同一个数据库和同一张表。
+# 4. 玩家进入子服时会自动从数据库重新读取飞行点数，不需要手动重载插件才能同步。
+# 5. 修改配置后使用 /flight reload 重载。
+#
+
+server-id: survival-1
+
+storage:
+  # 存储方式:
+  # yaml  = 本地文件存储，部署简单，适合单机或测试
+  # mysql = MySQL 存储，适合多子服共享飞行能量
+  type: yaml
+
+  mysql:
+    host: 127.0.0.1
+    port: 3306
+    database: minecraft
+    username: root
+    password: change_me
+    # 插件会自动创建这个表，无需手动建表。
+    table: mmm_flight_points
+    use-ssl: false
+
+language:
+  file: zh_CN.yml
+
+flight:
+  # 实际每次扣除 = base-cost-per-tick × 当前服务器/世界倍率
+  base-cost-per-tick: 1
+
+  # 20 tick = 1 秒
+  charge-interval-ticks: 20
+
+  # 玩家没有任何 mmmflight.limit.xxx 节点时使用这个上限
+  default-max-points: 1000
+
+  disable-flight-when-empty: true
+
+actionbar:
+  # ActionBar 与 BossBar 分开控制
+  enabled: true
+  format: "&b飞行点数: &f%points%&7/&f%max%"
+
+regen:
+  # 自动回能默认关闭
+  enabled: false
+  amount-per-interval: 5
+  interval-ticks: 100
+  only-when-not-flying: true
+  only-in-allowed-area: true
+
+consume-multiplier:
+  default: 1.0
+
+  servers:
+    survival-1: 1.0
+    survival-2: 1.0
+
+  worlds:
+    # 世界倍率优先于服务器倍率
+    # 配置结构写法: 服务器 -> 世界
+    # 生效优先级:
+    # worlds.<server-id>.<world> > servers.<server-id> > default
+    survival-1:
+      world: 1.0
+      world_nether: 1.5
+      world_the_end: 2.0
+    survival-2:
+      world: 1.0
+
+bossbar:
+  enabled: true
+
+  # false = 仅飞行时显示
+  # true  = 不飞行也显示
+  show-when-idle: false
+
+  color: BLUE
+  style: SEGMENTED_10
+  flags: []
+
+  # 可用变量:
+  # %points%       = 当前飞行能量
+  # %max%          = 最大飞行能量
+  # %cost%         = 当前这次实际扣除值（纯数字）
+  # %cost_display% = 当前扣除显示文本（带减号与颜色效果）
+  # %percent%      = 当前百分比
+  title: "&b飞行能量: &f%points%&7/&f%max% %cost_display% &8(&f%percent%%%&8)"
+
+  cost-animation:
+    # 是否启用扣费高亮效果。
+    # 开启后，不是一直闪，而是“每次真正扣费后”短暂高亮一段时间，再回到常态颜色。
+    enabled: true
+
+    # 高亮期间颜色切换的间隔，单位 tick。
+    # 5 tick = 0.25 秒
+    blink-interval-ticks: 5
+
+    # 一次扣费后，高亮持续多久，单位 tick。
+    # 12 tick = 0.6 秒
+    highlight-duration-ticks: 12
+
+    # 常态主色 / 高亮第一色
+    color-a: "&c"
+
+    # 高亮交替色
+    color-b: "&e"
+
+limits:
+  permission-prefix: mmmflight.limit.
+
+  # 这些档位会被插件自动注册为权限节点，方便 LuckPerms 自动补全
+  presets:
+    - 1000
+    - 2000
+    - 4000
+    - 8000
+
+allowed:
+  servers:
+    - survival-1
+    - survival-2
+
+  worlds:
+    - world
+    - world_nether
