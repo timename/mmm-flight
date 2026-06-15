@@ -156,16 +156,18 @@ public final class MMMFlightPlugin extends JavaPlugin {
         registerLimitPermissions();
         luckPermsHook = new LuckPermsHook(limitPermissionPrefix, defaultMaxPoints);
 
+        FlightStorage oldStorage = storage;
         FlightStorage newStorage = createStorage();
-        if (storage != null) {
-            storage.close();
-        }
-        storage = newStorage;
 
         if (flightService == null) {
+            storage = newStorage;
             flightService = new FlightService(this, storage, luckPermsHook);
         } else {
-            flightService.reload(storage, luckPermsHook);
+            flightService.reload(newStorage, luckPermsHook);
+            storage = newStorage;
+            if (oldStorage != null) {
+                oldStorage.close();
+            }
         }
         registerPlaceholders();
         startYamlFlushTask();

@@ -29,12 +29,14 @@ public final class FlightService {
     private final Map<UUID, FlightAccount> cache = new ConcurrentHashMap<>();
     private final Map<UUID, BossBar> bossBars = new ConcurrentHashMap<>();
     private final Map<UUID, Long> costHighlightUntilTick = new ConcurrentHashMap<>();
+    private final java.util.Set<UUID> dirtyAccounts = ConcurrentHashMap.newKeySet();
     private final AtomicLong flightTickCounter = new AtomicLong();
     private final AtomicLong animationTickCounter = new AtomicLong();
     private FlightStorage storage;
     private LuckPermsHook luckPermsHook;
     private BukkitTask flightTask;
     private BukkitTask bossBarAnimationTask;
+    private BukkitTask accountSaveTask;
 
     public FlightService(MMMFlightPlugin plugin, FlightStorage storage, LuckPermsHook luckPermsHook) {
         this.plugin = plugin;
@@ -49,15 +51,21 @@ public final class FlightService {
         if (bossBarAnimationTask != null) {
             bossBarAnimationTask.cancel();
         }
+        if (accountSaveTask != null) {
+            accountSaveTask.cancel();
+        }
         flightTask = Bukkit.getScheduler().runTaskTimer(plugin, this::tickFlight, plugin.getChargeIntervalTicks(), plugin.getChargeIntervalTicks());
         bossBarAnimationTask = Bukkit.getScheduler().runTaskTimer(plugin, this::tickBossBarAnimation, 1L, 1L);
+        accountSaveTask = Bukkit.getScheduler().runTaskTimer(plugin, this::flushDirtyAccounts, 60L, 60L);
     }
 
     public void reload(FlightStorage newStorage, LuckPermsHook newLuckPermsHook) {
+        flushDirtyAccounts();
         cache.values().forEach(storage::saveAccount);
         this.storage = newStorage;
         this.luckPermsHook = newLuckPermsHook;
         this.cache.clear();
+        this.dirtyAccounts.clear();
         this.costHighlightUntilTick.clear();
         this.flightTickCounter.set(0L);
         this.animationTickCounter.set(0L);
@@ -73,9 +81,14 @@ public final class FlightService {
         if (bossBarAnimationTask != null) {
             bossBarAnimationTask.cancel();
         }
+        if (accountSaveTask != null) {
+            accountSaveTask.cancel();
+        }
+        flushDirtyAccounts();
         cache.values().forEach(storage::saveAccount);
         bossBars.values().forEach(BossBar::removeAll);
         bossBars.clear();
+        dirtyAccounts.clear();
         costHighlightUntilTick.clear();
         flightTickCounter.set(0L);
         animationTickCounter.set(0L);
@@ -106,6 +119,7 @@ public final class FlightService {
         UUID uuid = player.getUniqueId();
         FlightAccount account = cache.remove(uuid);
         if (account != null) {
+            dirtyAccounts.remove(uuid);
             storage.saveAccount(account);
         }
         costHighlightUntilTick.remove(uuid);
@@ -118,10 +132,19 @@ public final class FlightService {
     }
 
     public void setPoints(UUID uuid, int points, int maxPoints) {
+        setPoints(uuid, points, maxPoints, true);
+    }
+
+    private void setPoints(UUID uuid, int points, int maxPoints, boolean saveImmediately) {
         int sanitized = Math.max(0, Math.min(points, Math.max(0, maxPoints)));
         FlightAccount account = getAccount(uuid);
         account.setPoints(sanitized);
-        storage.saveAccount(account);
+        if (saveImmediately) {
+            dirtyAccounts.remove(uuid);
+            storage.saveAccount(account);
+        } else {
+            dirtyAccounts.add(uuid);
+        }
         Player online = Bukkit.getPlayer(uuid);
         if (online != null) {
             syncFlightState(online);
@@ -144,6 +167,7 @@ public final class FlightService {
     public void resetRecharge(UUID uuid) {
         FlightAccount account = getAccount(uuid);
         account.resetDailyRecharge(LocalDate.now(plugin.getRechargeZoneId()));
+        dirtyAccounts.remove(uuid);
         storage.saveAccount(account);
     }
 
@@ -498,7 +522,7 @@ public final class FlightService {
             }
 
             costHighlightUntilTick.put(player.getUniqueId(), animationTickCounter.get() + plugin.getBossBarCostHighlightDurationTicks());
-            setPoints(player, current - effectiveCost);
+            setPoints(player.getUniqueId(), current - effectiveCost, getMaxPoints(player), false);
             if (getPoints(player) <= 0 && plugin.isDisableFlightWhenEmpty()) {
                 disableFlight(player, plugin.message("no-points"));
             } else {
@@ -539,7 +563,19 @@ public final class FlightService {
         if (current >= max) {
             return;
         }
-        setPoints(player.getUniqueId(), current + plugin.getRegenAmountPerInterval(), max);
+        setPoints(player.getUniqueId(), current + plugin.getRegenAmountPerInterval(), max, false);
+    }
+
+    private void flushDirtyAccounts() {
+        for (UUID uuid : new java.util.HashSet<>(dirtyAccounts)) {
+            FlightAccount account = cache.get(uuid);
+            if (account == null) {
+                dirtyAccounts.remove(uuid);
+                continue;
+            }
+            storage.saveAccount(account);
+            dirtyAccounts.remove(uuid);
+        }
     }
 
     private void sendActionBar(Player player) {
