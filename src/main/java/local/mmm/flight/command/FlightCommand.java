@@ -18,7 +18,7 @@ import org.bukkit.util.StringUtil;
 public final class FlightCommand implements CommandExecutor, TabCompleter {
 
     private static final List<String> USER_SUBS = List.of("balance", "recharge");
-    private static final List<String> ADMIN_SUBS = List.of("balance", "add", "remove", "set", "clear", "reload", "recharge");
+    private static final List<String> ADMIN_SUBS = List.of("balance", "add", "remove", "set", "clear", "resetrecharge", "reload", "recharge");
 
     private final MMMFlightPlugin plugin;
     private final FlightService flightService;
@@ -47,6 +47,8 @@ public final class FlightCommand implements CommandExecutor, TabCompleter {
                 return handleReload(sender);
             case "clear":
                 return handleClear(sender, args);
+            case "resetrecharge":
+                return handleResetRecharge(sender, args);
             case "recharge":
                 return handleRecharge(sender, args);
             default:
@@ -228,6 +230,25 @@ public final class FlightCommand implements CommandExecutor, TabCompleter {
         return true;
     }
 
+    private boolean handleResetRecharge(CommandSender sender, String[] args) {
+        if (!sender.hasPermission("mmmflight.admin")) {
+            sender.sendMessage(plugin.message("no-permission"));
+            return true;
+        }
+        if (args.length < 2) {
+            return false;
+        }
+        FlightProfile profile = flightService.resolveProfile(args[1]);
+        if (profile == null) {
+            sender.sendMessage(plugin.message("player-not-joined"));
+            return true;
+        }
+        flightService.resetRecharge(profile.uuid());
+        sender.sendMessage(plugin.message("recharge-reset")
+                .replace("%player%", profile.name()));
+        return true;
+    }
+
     private Integer parseInt(String input) {
         try {
             return Integer.parseInt(input);
@@ -258,7 +279,7 @@ public final class FlightCommand implements CommandExecutor, TabCompleter {
         if (!sender.hasPermission("mmmflight.admin")) {
             return Collections.emptyList();
         }
-        if (args.length == 2 && List.of("balance", "add", "remove", "set", "clear").contains(args[0].toLowerCase())) {
+        if (args.length == 2 && List.of("balance", "add", "remove", "set", "clear", "resetrecharge").contains(args[0].toLowerCase())) {
             List<String> names = new ArrayList<>();
             for (Player player : Bukkit.getOnlinePlayers()) {
                 names.add(player.getName());

@@ -93,6 +93,7 @@ public final class FlightPlaceholderExpansion extends PlaceholderExpansion {
                 "available_",
                 "can_",
                 "status_",
+                "item_limit_ignored_text_",
                 "item_limit_ignored_",
                 "normal_limit_",
                 "max_required_"
@@ -117,6 +118,7 @@ public final class FlightPlaceholderExpansion extends PlaceholderExpansion {
                 case "available_" -> String.valueOf(preview.available());
                 case "can_" -> String.valueOf(preview.canRecharge());
                 case "status_" -> flightService.getRechargeStatusText(preview);
+                case "item_limit_ignored_text_" -> flightService.getItemLimitIgnoredText(preview.itemLimitIgnored());
                 case "item_limit_ignored_" -> String.valueOf(preview.itemLimitIgnored());
                 case "normal_limit_" -> String.valueOf(preview.itemLimit());
                 case "max_required_" -> String.valueOf(preview.maxRequired());

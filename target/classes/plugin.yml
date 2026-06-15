@@ -1,5 +1,5 @@
 name: MMMFlight
-version: 1.8.0
+version: 1.8.1
 main: local.mmm.flight.MMMFlightPlugin
 api-version: "1.21"
 author: Xiaomenxin
@@ -12,7 +12,7 @@ commands:
     usage: /mfly
   flight:
     description: Flight point administration
-    usage: /flight <balance|recharge|add|remove|set|clear|reload>
+    usage: /flight <balance|recharge|add|remove|set|clear|resetrecharge|reload>
 permissions:
   mmmflight.use:
     default: true
