@@ -1,7 +1,10 @@
 package local.mmm.flight;
 
 import java.io.File;
+import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -12,12 +15,14 @@ import local.mmm.flight.command.FlightCommand;
 import local.mmm.flight.command.FlyCommand;
 import local.mmm.flight.hook.LuckPermsHook;
 import local.mmm.flight.listener.FlightListener;
+import local.mmm.flight.model.RechargeItem;
 import local.mmm.flight.placeholder.FlightPlaceholderExpansion;
 import local.mmm.flight.service.FlightService;
 import local.mmm.flight.storage.FlightStorage;
 import local.mmm.flight.storage.MysqlFlightStorage;
 import local.mmm.flight.storage.YamlFlightStorage;
 import org.bukkit.Bukkit;
+import org.bukkit.Material;
 import org.bukkit.boss.BarColor;
 import org.bukkit.boss.BarFlag;
 import org.bukkit.boss.BarStyle;
@@ -52,6 +57,14 @@ public final class MMMFlightPlugin extends JavaPlugin {
     private int regenIntervalTicks;
     private boolean regenOnlyWhenNotFlying;
     private boolean regenOnlyInAllowedArea;
+    private boolean rechargeEnabled;
+    private ZoneId rechargeZoneId;
+    private int rechargeDailyTotalLimit;
+    private int rechargeDefaultPerItemLimit;
+    private RechargeItem.RewardMode rechargeDefaultRewardMode;
+    private double rechargeDefaultRewardAmount;
+    private double rechargeDefaultCostMultiplier;
+    private Map<String, RechargeItem> rechargeItems;
     private double defaultConsumeMultiplier;
     private Map<String, Double> serverConsumeMultipliers;
     private Map<String, Map<String, Double>> worldConsumeMultipliers;
@@ -122,6 +135,7 @@ public final class MMMFlightPlugin extends JavaPlugin {
         regenIntervalTicks = Math.max(1, config.getInt("regen.interval-ticks", 100));
         regenOnlyWhenNotFlying = config.getBoolean("regen.only-when-not-flying", true);
         regenOnlyInAllowedArea = config.getBoolean("regen.only-in-allowed-area", true);
+        loadRechargeConfig(config);
         loadConsumeMultipliers(config);
         bossBarEnabled = config.getBoolean("bossbar.enabled", true);
         bossBarShowWhenIdle = config.getBoolean("bossbar.show-when-idle", false);
@@ -261,6 +275,26 @@ public final class MMMFlightPlugin extends JavaPlugin {
 
     public boolean isRegenOnlyInAllowedArea() {
         return regenOnlyInAllowedArea;
+    }
+
+    public boolean isRechargeEnabled() {
+        return rechargeEnabled;
+    }
+
+    public ZoneId getRechargeZoneId() {
+        return rechargeZoneId;
+    }
+
+    public int getRechargeDailyTotalLimit() {
+        return rechargeDailyTotalLimit;
+    }
+
+    public Map<String, RechargeItem> getRechargeItems() {
+        return Collections.unmodifiableMap(rechargeItems);
+    }
+
+    public RechargeItem getRechargeItem(String key) {
+        return rechargeItems.get(key);
     }
 
     public boolean isBossBarEnabled() {
@@ -407,6 +441,65 @@ public final class MMMFlightPlugin extends JavaPlugin {
                 worldConsumeMultipliers.put(serverKey, worldMap);
             }
         }
+    }
+
+    private void loadRechargeConfig(FileConfiguration config) {
+        rechargeEnabled = config.getBoolean("recharge.enabled", true);
+        rechargeZoneId = parseZoneId(config.getString("recharge.timezone", "Asia/Shanghai"));
+        rechargeDailyTotalLimit = Math.max(0, config.getInt("recharge.limits.daily-total", 12));
+        rechargeDefaultPerItemLimit = Math.max(0, config.getInt("recharge.limits.per-item-default", 5));
+        rechargeDefaultRewardMode = parseRewardMode(config.getString("recharge.reward-default.mode", "percent"));
+        rechargeDefaultRewardAmount = Math.max(0.0D, config.getDouble("recharge.reward-default.amount", 25.0D));
+        rechargeDefaultCostMultiplier = Math.max(0.0D, config.getDouble("recharge.cost-default.multiplier", 2.0D));
+        rechargeItems = new LinkedHashMap<>();
+
+        ConfigurationSection itemsSection = config.getConfigurationSection("recharge.items");
+        if (itemsSection == null) {
+            return;
+        }
+        for (String key : itemsSection.getKeys(false)) {
+            ConfigurationSection section = itemsSection.getConfigurationSection(key);
+            if (section == null) {
+                continue;
+            }
+            Material material = parseMaterial(section.getString("material", key));
+            if (material == null || material.isAir()) {
+                getLogger().warning("Invalid recharge material for key: " + key);
+                continue;
+            }
+            int baseCost = Math.max(1, section.getInt("base-cost", 32));
+            double multiplier = Math.max(0.0D, section.getDouble("cost-multiplier", rechargeDefaultCostMultiplier));
+            int dailyLimit = Math.max(0, section.getInt("daily-limit", rechargeDefaultPerItemLimit));
+            RechargeItem.RewardMode rewardMode = parseRewardMode(section.getString("reward.mode", rechargeDefaultRewardMode.name()));
+            double rewardAmount = Math.max(0.0D, section.getDouble("reward.amount", rechargeDefaultRewardAmount));
+            rechargeItems.put(key.toLowerCase(), new RechargeItem(key.toLowerCase(), material, baseCost, multiplier, dailyLimit, rewardMode, rewardAmount));
+        }
+    }
+
+    private ZoneId parseZoneId(String input) {
+        try {
+            return ZoneId.of(input);
+        } catch (Exception ignored) {
+            return ZoneId.of("Asia/Shanghai");
+        }
+    }
+
+    private Material parseMaterial(String input) {
+        if (input == null) {
+            return null;
+        }
+        try {
+            return Material.valueOf(input.trim().toUpperCase());
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    private RechargeItem.RewardMode parseRewardMode(String input) {
+        if ("fixed".equalsIgnoreCase(input)) {
+            return RechargeItem.RewardMode.FIXED;
+        }
+        return RechargeItem.RewardMode.PERCENT;
     }
 
     private List<Integer> parseLimitPresets(List<Integer> configuredPresets) {

@@ -1,12 +1,15 @@
 package local.mmm.flight.service;
 
+import java.time.LocalDate;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 import local.mmm.flight.MMMFlightPlugin;
 import local.mmm.flight.hook.LuckPermsHook;
+import local.mmm.flight.model.FlightAccount;
 import local.mmm.flight.model.FlightProfile;
+import local.mmm.flight.model.RechargeItem;
 import local.mmm.flight.storage.FlightStorage;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
@@ -15,12 +18,13 @@ import org.bukkit.OfflinePlayer;
 import org.bukkit.boss.BarFlag;
 import org.bukkit.boss.BossBar;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.scheduler.BukkitTask;
 
 public final class FlightService {
 
     private final MMMFlightPlugin plugin;
-    private final Map<UUID, Integer> cache = new ConcurrentHashMap<>();
+    private final Map<UUID, FlightAccount> cache = new ConcurrentHashMap<>();
     private final Map<UUID, BossBar> bossBars = new ConcurrentHashMap<>();
     private final Map<UUID, Long> costHighlightUntilTick = new ConcurrentHashMap<>();
     private final AtomicLong flightTickCounter = new AtomicLong();
@@ -48,6 +52,7 @@ public final class FlightService {
     }
 
     public void reload(FlightStorage newStorage, LuckPermsHook newLuckPermsHook) {
+        cache.values().forEach(storage::saveAccount);
         this.storage = newStorage;
         this.luckPermsHook = newLuckPermsHook;
         this.cache.clear();
@@ -66,7 +71,7 @@ public final class FlightService {
         if (bossBarAnimationTask != null) {
             bossBarAnimationTask.cancel();
         }
-        cache.forEach(storage::savePoints);
+        cache.values().forEach(storage::saveAccount);
         bossBars.values().forEach(BossBar::removeAll);
         bossBars.clear();
         costHighlightUntilTick.clear();
@@ -80,12 +85,16 @@ public final class FlightService {
     }
 
     public int getPoints(UUID uuid) {
-        return cache.computeIfAbsent(uuid, storage::loadPoints);
+        return getAccount(uuid).getPoints();
+    }
+
+    private FlightAccount getAccount(UUID uuid) {
+        return cache.computeIfAbsent(uuid, storage::loadAccount);
     }
 
     public void reloadPoints(Player player) {
         UUID uuid = player.getUniqueId();
-        int latest = storage.loadPoints(uuid);
+        FlightAccount latest = storage.loadAccount(uuid);
         cache.put(uuid, latest);
         syncFlightState(player);
         updateBossBar(player);
@@ -93,9 +102,9 @@ public final class FlightService {
 
     public void unloadPlayer(Player player) {
         UUID uuid = player.getUniqueId();
-        Integer points = cache.remove(uuid);
-        if (points != null) {
-            storage.savePoints(uuid, points);
+        FlightAccount account = cache.remove(uuid);
+        if (account != null) {
+            storage.saveAccount(account);
         }
         costHighlightUntilTick.remove(uuid);
         hideBossBar(player);
@@ -108,8 +117,9 @@ public final class FlightService {
 
     public void setPoints(UUID uuid, int points, int maxPoints) {
         int sanitized = Math.max(0, Math.min(points, Math.max(0, maxPoints)));
-        cache.put(uuid, sanitized);
-        storage.savePoints(uuid, sanitized);
+        FlightAccount account = getAccount(uuid);
+        account.setPoints(sanitized);
+        storage.saveAccount(account);
         Player online = Bukkit.getPlayer(uuid);
         if (online != null) {
             syncFlightState(online);
@@ -123,6 +133,10 @@ public final class FlightService {
 
     public void addPoints(UUID uuid, int amount, int maxPoints) {
         setPoints(uuid, getPoints(uuid) + amount, maxPoints);
+    }
+
+    public void removePoints(UUID uuid, int amount, int maxPoints) {
+        setPoints(uuid, getPoints(uuid) - Math.max(0, amount), maxPoints);
     }
 
     public FlightProfile resolveProfile(String input) {
@@ -154,6 +168,102 @@ public final class FlightService {
         int max = Math.max(1, getMaxPoints(player));
         int points = getPoints(player.getUniqueId());
         return Math.max(0, Math.min(100, (int) Math.round((points * 100.0D) / max)));
+    }
+
+    public boolean recharge(Player player, String key) {
+        if (!plugin.isRechargeEnabled()) {
+            player.sendMessage(plugin.message("recharge-disabled"));
+            return false;
+        }
+        RechargeItem item = plugin.getRechargeItem(normalizeRechargeKey(key));
+        if (item == null) {
+            player.sendMessage(plugin.message("recharge-unknown")
+                    .replace("%item%", key == null ? "" : key));
+            return false;
+        }
+
+        FlightAccount account = getAccount(player.getUniqueId());
+        resetRechargeIfNeeded(account);
+        int maxPoints = getMaxPoints(player);
+        int current = account.getPoints();
+        if (current >= maxPoints) {
+            player.sendMessage(plugin.message("recharge-full")
+                    .replace("%points%", String.valueOf(current))
+                    .replace("%max%", String.valueOf(maxPoints)));
+            return false;
+        }
+        if (plugin.getRechargeDailyTotalLimit() > 0 && account.getDailyRechargeTotal() >= plugin.getRechargeDailyTotalLimit()) {
+            player.sendMessage(plugin.message("recharge-total-limit")
+                    .replace("%used%", String.valueOf(account.getDailyRechargeTotal()))
+                    .replace("%limit%", String.valueOf(plugin.getRechargeDailyTotalLimit())));
+            return false;
+        }
+        int usedItemCount = account.getDailyRechargeCount(item.key());
+        if (item.dailyLimit() > 0 && usedItemCount >= item.dailyLimit()) {
+            player.sendMessage(plugin.message("recharge-item-limit")
+                    .replace("%item%", item.key())
+                    .replace("%used%", String.valueOf(usedItemCount))
+                    .replace("%limit%", String.valueOf(item.dailyLimit())));
+            return false;
+        }
+
+        int required = getRequiredRechargeAmount(item, usedItemCount);
+        int available = countItems(player, item);
+        if (available < required) {
+            player.sendMessage(plugin.message("recharge-not-enough")
+                    .replace("%item%", item.key())
+                    .replace("%required%", String.valueOf(required))
+                    .replace("%available%", String.valueOf(available)));
+            return false;
+        }
+
+        int reward = calculateRechargeReward(item, maxPoints);
+        int newPoints = Math.min(maxPoints, current + reward);
+        int actualReward = Math.max(0, newPoints - current);
+        removeItems(player, item, required);
+        account.setPoints(newPoints);
+        account.incrementRechargeCount(item.key());
+        storage.saveAccount(account);
+        syncFlightState(player);
+        updateBossBar(player);
+        player.sendMessage(plugin.message("recharge-success")
+                .replace("%item%", item.key())
+                .replace("%cost%", String.valueOf(required))
+                .replace("%amount%", String.valueOf(actualReward))
+                .replace("%points%", String.valueOf(newPoints))
+                .replace("%max%", String.valueOf(maxPoints))
+                .replace("%total_used%", String.valueOf(account.getDailyRechargeTotal()))
+                .replace("%total_limit%", String.valueOf(plugin.getRechargeDailyTotalLimit()))
+                .replace("%item_used%", String.valueOf(account.getDailyRechargeCount(item.key())))
+                .replace("%item_limit%", String.valueOf(item.dailyLimit())));
+        return true;
+    }
+
+    public String getRechargeSummary(Player player) {
+        FlightAccount account = getAccount(player.getUniqueId());
+        resetRechargeIfNeeded(account);
+        return plugin.message("recharge-summary")
+                .replace("%used%", String.valueOf(account.getDailyRechargeTotal()))
+                .replace("%limit%", String.valueOf(plugin.getRechargeDailyTotalLimit()))
+                .replace("%items%", String.join(", ", plugin.getRechargeItems().keySet()));
+    }
+
+    public String getRechargeInfo(Player player, String key) {
+        RechargeItem item = plugin.getRechargeItem(normalizeRechargeKey(key));
+        if (item == null) {
+            return plugin.message("recharge-unknown").replace("%item%", key == null ? "" : key);
+        }
+        FlightAccount account = getAccount(player.getUniqueId());
+        resetRechargeIfNeeded(account);
+        int usedItemCount = account.getDailyRechargeCount(item.key());
+        return plugin.message("recharge-info")
+                .replace("%item%", item.key())
+                .replace("%used%", String.valueOf(usedItemCount))
+                .replace("%limit%", String.valueOf(item.dailyLimit()))
+                .replace("%total_used%", String.valueOf(account.getDailyRechargeTotal()))
+                .replace("%total_limit%", String.valueOf(plugin.getRechargeDailyTotalLimit()))
+                .replace("%required%", String.valueOf(getRequiredRechargeAmount(item, usedItemCount)))
+                .replace("%reward%", String.valueOf(calculateRechargeReward(item, getMaxPoints(player))));
     }
 
     public boolean canUseFlight(Player player) {
@@ -361,5 +471,57 @@ public final class FlightService {
             bar.removePlayer(player);
             bar.setVisible(false);
         }
+    }
+
+    private String normalizeRechargeKey(String key) {
+        return key == null ? "" : key.toLowerCase();
+    }
+
+    private void resetRechargeIfNeeded(FlightAccount account) {
+        LocalDate today = LocalDate.now(plugin.getRechargeZoneId());
+        if (!today.equals(account.getRechargeDate())) {
+            account.resetDailyRecharge(today);
+            storage.saveAccount(account);
+        }
+    }
+
+    private int getRequiredRechargeAmount(RechargeItem item, int usedItemCount) {
+        double amount = item.baseCost() * Math.pow(item.costMultiplier(), Math.max(0, usedItemCount));
+        return Math.max(1, (int) Math.ceil(amount));
+    }
+
+    private int calculateRechargeReward(RechargeItem item, int maxPoints) {
+        if (item.rewardMode() == RechargeItem.RewardMode.FIXED) {
+            return Math.max(0, (int) Math.ceil(item.rewardAmount()));
+        }
+        return Math.max(0, (int) Math.ceil(Math.max(0, maxPoints) * item.rewardAmount() / 100.0D));
+    }
+
+    private int countItems(Player player, RechargeItem item) {
+        int count = 0;
+        for (ItemStack stack : player.getInventory().getContents()) {
+            if (stack != null && stack.getType() == item.material()) {
+                count += stack.getAmount();
+            }
+        }
+        return count;
+    }
+
+    private void removeItems(Player player, RechargeItem item, int amount) {
+        int remaining = amount;
+        ItemStack[] contents = player.getInventory().getContents();
+        for (int slot = 0; slot < contents.length && remaining > 0; slot++) {
+            ItemStack stack = contents[slot];
+            if (stack == null || stack.getType() != item.material()) {
+                continue;
+            }
+            int take = Math.min(remaining, stack.getAmount());
+            stack.setAmount(stack.getAmount() - take);
+            remaining -= take;
+            if (stack.getAmount() <= 0) {
+                contents[slot] = null;
+            }
+        }
+        player.getInventory().setContents(contents);
     }
 }

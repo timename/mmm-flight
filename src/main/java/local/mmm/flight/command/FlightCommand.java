@@ -17,7 +17,8 @@ import org.bukkit.util.StringUtil;
 
 public final class FlightCommand implements CommandExecutor, TabCompleter {
 
-    private static final List<String> SUBS = List.of("balance", "add", "set", "clear", "reload");
+    private static final List<String> USER_SUBS = List.of("balance", "recharge");
+    private static final List<String> ADMIN_SUBS = List.of("balance", "add", "remove", "set", "clear", "reload", "recharge");
 
     private final MMMFlightPlugin plugin;
     private final FlightService flightService;
@@ -38,12 +39,16 @@ public final class FlightCommand implements CommandExecutor, TabCompleter {
                 return handleBalance(sender, args);
             case "add":
                 return handleAdd(sender, args);
+            case "remove":
+                return handleRemove(sender, args);
             case "set":
                 return handleSet(sender, args);
             case "reload":
                 return handleReload(sender);
             case "clear":
                 return handleClear(sender, args);
+            case "recharge":
+                return handleRecharge(sender, args);
             default:
                 return handleBalanceSelf(sender);
         }
@@ -111,6 +116,59 @@ public final class FlightCommand implements CommandExecutor, TabCompleter {
                 .replace("%points%", String.valueOf(flightService.getPoints(profile.uuid()))));
         return true;
     }
+
+    private boolean handleRemove(CommandSender sender, String[] args) {
+        if (!sender.hasPermission("mmmflight.admin")) {
+            sender.sendMessage(plugin.message("no-permission"));
+            return true;
+        }
+        if (args.length < 3) {
+            return false;
+        }
+        FlightProfile profile = flightService.resolveProfile(args[1]);
+        if (profile == null) {
+            sender.sendMessage(plugin.message("player-not-joined"));
+            return true;
+        }
+        Integer amount = parseInt(args[2]);
+        if (amount == null || amount < 0) {
+            sender.sendMessage(plugin.message("invalid-number"));
+            return true;
+        }
+        OfflinePlayer target = Bukkit.getOfflinePlayer(profile.uuid());
+        flightService.removePoints(profile.uuid(), amount, flightService.getMaxPoints(target));
+        sender.sendMessage(plugin.message("removed")
+                .replace("%player%", profile.name())
+                .replace("%amount%", String.valueOf(amount))
+                .replace("%points%", String.valueOf(flightService.getPoints(profile.uuid()))));
+        return true;
+    }
+
+    private boolean handleRecharge(CommandSender sender, String[] args) {
+        if (!(sender instanceof Player player)) {
+            sender.sendMessage(plugin.message("player-only"));
+            return true;
+        }
+        if (!player.hasPermission("mmmflight.use")) {
+            player.sendMessage(plugin.message("no-permission"));
+            return true;
+        }
+        if (args.length == 1) {
+            player.sendMessage(flightService.getRechargeSummary(player));
+            return true;
+        }
+        if ("info".equalsIgnoreCase(args[1])) {
+            if (args.length < 3) {
+                player.sendMessage(flightService.getRechargeSummary(player));
+                return true;
+            }
+            player.sendMessage(flightService.getRechargeInfo(player, args[2]));
+            return true;
+        }
+        flightService.recharge(player, args[1]);
+        return true;
+    }
+
 
     private boolean handleSet(CommandSender sender, String[] args) {
         if (!sender.hasPermission("mmmflight.admin")) {
@@ -180,17 +238,25 @@ public final class FlightCommand implements CommandExecutor, TabCompleter {
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         if (args.length == 1) {
             if (sender.hasPermission("mmmflight.admin")) {
-                return copyPartialMatches(args[0], SUBS);
+                return copyPartialMatches(args[0], ADMIN_SUBS);
             }
             if (sender.hasPermission("mmmflight.use")) {
-                return copyPartialMatches(args[0], List.of("balance"));
+                return copyPartialMatches(args[0], USER_SUBS);
             }
             return Collections.emptyList();
+        }
+        if (args.length == 2 && "recharge".equalsIgnoreCase(args[0]) && sender.hasPermission("mmmflight.use")) {
+            List<String> options = new ArrayList<>(plugin.getRechargeItems().keySet());
+            options.add("info");
+            return copyPartialMatches(args[1], options);
+        }
+        if (args.length == 3 && "recharge".equalsIgnoreCase(args[0]) && "info".equalsIgnoreCase(args[1]) && sender.hasPermission("mmmflight.use")) {
+            return copyPartialMatches(args[2], new ArrayList<>(plugin.getRechargeItems().keySet()));
         }
         if (!sender.hasPermission("mmmflight.admin")) {
             return Collections.emptyList();
         }
-        if (args.length == 2 && List.of("balance", "add", "set", "clear").contains(args[0].toLowerCase())) {
+        if (args.length == 2 && List.of("balance", "add", "remove", "set", "clear").contains(args[0].toLowerCase())) {
             List<String> names = new ArrayList<>();
             for (Player player : Bukkit.getOnlinePlayers()) {
                 names.add(player.getName());

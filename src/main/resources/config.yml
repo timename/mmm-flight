@@ -58,6 +58,40 @@ regen:
   only-when-not-flying: true
   only-in-allowed-area: true
 
+recharge:
+  enabled: true
+  timezone: Asia/Shanghai
+
+  limits:
+    # 每个玩家每天最多充能总次数，0 表示不限制
+    daily-total: 12
+
+    # 每种物品默认每天最多充能次数，0 表示不限制
+    per-item-default: 5
+
+  reward-default:
+    # percent = 按玩家飞行点数上限百分比充能，fixed = 固定点数
+    mode: percent
+    # percent 模式下 25 = 上限的 25%，计算结果向上取整
+    amount: 25
+
+  cost-default:
+    # 第 N 次消耗 = base-cost * multiplier ^ 今日已用次数
+    multiplier: 2.0
+
+  items:
+    rotten_flesh:
+      material: ROTTEN_FLESH
+      base-cost: 32
+
+    pumpkin:
+      material: PUMPKIN
+      base-cost: 16
+
+    sugar_cane:
+      material: SUGAR_CANE
+      base-cost: 32
+
 consume-multiplier:
   default: 1.0
 

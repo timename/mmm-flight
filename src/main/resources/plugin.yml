@@ -12,7 +12,7 @@ commands:
     usage: /mfly
   flight:
     description: Flight point administration
-    usage: /flight <balance|add|set|clear|reload>
+    usage: /flight <balance|recharge|add|remove|set|clear|reload>
 permissions:
   mmmflight.use:
     default: true

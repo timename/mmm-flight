@@ -37,6 +37,7 @@
 ```text
 /flight balance <玩家>
 /flight add <玩家> <数值>
+/flight remove <玩家> <数值>
 /flight set <玩家> <数值>
 /flight clear <玩家>
 /flight reload
@@ -46,9 +47,114 @@
 
 - `balance` 查看玩家当前飞行点数
 - `add` 给玩家增加飞行点数
+- `remove` 减少玩家飞行点数
 - `set` 直接设置玩家飞行点数
 - `clear` 清空玩家飞行点数
 - `reload` 重载插件配置和语言文件
+
+## 飞行点数充能
+
+玩家可以通过消耗指定物品给自己的飞行点数充能。默认配置中，每次充能增加玩家飞行点数上限的 `25%`，计算结果向上取整，但最终点数不会超过玩家当前飞行点数上限。
+
+玩家指令:
+
+```text
+/flight recharge
+/flight recharge <物品Key>
+/flight recharge info <物品Key>
+```
+
+作用:
+
+- `/flight recharge` 查看今日总充能次数和可用物品。
+- `/flight recharge <物品Key>` 使用指定物品充能一次。
+- `/flight recharge info <物品Key>` 查看该物品今日已用次数、下次需要数量、预计充能点数。
+
+默认可用物品 Key:
+
+```text
+rotten_flesh
+pumpkin
+sugar_cane
+```
+
+默认限制:
+
+- 每个玩家每天最多总充能 `12` 次。
+- 每种物品默认每天最多充能 `5` 次。
+- 每种物品和每日总次数都会在 `Asia/Shanghai` 北京时间自然日 0 点刷新。
+- 每种物品的消耗量按次数翻倍，公式为 `base-cost * multiplier ^ 今日该物品已用次数`。
+
+默认消耗示例:
+
+```text
+rotten_flesh: 32, 64, 128, 256, 512
+pumpkin:      16, 32, 64, 128, 256
+sugar_cane:   32, 64, 128, 256, 512
+```
+
+Invero 菜单联动时，建议每个按钮直接执行一次固定命令:
+
+```text
+flight recharge rotten_flesh
+flight recharge pumpkin
+flight recharge sugar_cane
+```
+
+如果菜单需要展示详情，可以使用:
+
+```text
+flight recharge info rotten_flesh
+flight recharge info pumpkin
+flight recharge info sugar_cane
+```
+
+对应配置位于 `config.yml`:
+
+```yml
+recharge:
+  enabled: true
+  timezone: Asia/Shanghai
+
+  limits:
+    daily-total: 12
+    per-item-default: 5
+
+  reward-default:
+    mode: percent
+    amount: 25
+
+  cost-default:
+    multiplier: 2.0
+
+  items:
+    rotten_flesh:
+      material: ROTTEN_FLESH
+      base-cost: 32
+
+    pumpkin:
+      material: PUMPKIN
+      base-cost: 16
+
+    sugar_cane:
+      material: SUGAR_CANE
+      base-cost: 32
+```
+
+单个物品可以覆盖默认每日次数、消耗倍率和充能方式:
+
+```yml
+recharge:
+  items:
+    cactus:
+      material: CACTUS
+      base-cost: 24
+      daily-limit: 3
+      cost-multiplier: 2.0
+      reward:
+        mode: fixed
+        amount: 180
+```
 
 ## 权限节点
 
