@@ -1,4 +1,4 @@
-# MMMFlight 1.8.4
+# MMMFlight 1.8.5
 
 适用于 Purpur `1.21.10` 的飞行能量插件，支持 Velocity 多子服场景。
 
@@ -55,6 +55,24 @@
 - `clear` 清空玩家飞行点数
 - `resetrecharge` 重置玩家今日飞行充能状态
 - `reload` 重载插件配置和语言文件
+
+## 飞行点数扣除规则
+
+默认情况下，玩家执行 `/mfly` 开启飞行模式后就会开始消耗飞行点数，即使玩家只是站在地上但处于允许飞行状态。
+
+拥有 `mmmflight.deduct.active-only` 权限的玩家，会使用更宽松的扣点规则: 只有真正双击空格并处于飞行状态时才消耗飞行点数。
+
+开启飞行模式后默认有 `1` 秒防抖时间，防抖期间不会扣点。为了避免玩家反复开关飞行刷新免费时间，防抖默认有 `5` 秒冷却。
+
+对应配置:
+
+```yml
+flight:
+  deduct:
+    grace-period-ticks: 20
+    grace-period-cooldown-ticks: 100
+    active-flight-only-permission: mmmflight.deduct.active-only
+```
 
 ## 飞行点数充能
 
@@ -212,6 +230,8 @@ recharge:
   允许使用 `/flight` 管理指令
 - `mmmflight.bypass.consume`
   飞行时不消耗能量
+- `mmmflight.deduct.active-only`
+  只有玩家真正处于飞行状态时才消耗飞行点数
 - `mmmflight.bypass.server`
   无视服务器限制
 - `mmmflight.bypass.world`
@@ -406,7 +426,7 @@ BossBar 支持变量:
 将构建产物放入每个 Purpur 子服的 `plugins` 目录:
 
 ```text
-target/mmm-flight-1.8.4.jar
+target/mmm-flight-1.8.5.jar
 ```
 
 首次启动后会自动生成:

@@ -1,5 +1,5 @@
 name: MMMFlight
-version: 1.8.4
+version: 1.8.5
 main: local.mmm.flight.MMMFlightPlugin
 api-version: "1.21"
 author: Xiaomenxin
@@ -20,6 +20,8 @@ permissions:
     default: op
   mmmflight.bypass.consume:
     default: op
+  mmmflight.deduct.active-only:
+    default: false
   mmmflight.bypass.world:
     default: op
   mmmflight.bypass.server:

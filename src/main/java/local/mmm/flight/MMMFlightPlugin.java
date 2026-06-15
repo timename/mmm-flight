@@ -49,6 +49,9 @@ public final class MMMFlightPlugin extends JavaPlugin {
     private int defaultMaxPoints;
     private int baseCostPerTick;
     private int chargeIntervalTicks;
+    private int flightDeductGracePeriodTicks;
+    private int flightDeductGracePeriodCooldownTicks;
+    private String flightDeductActiveOnlyPermission;
     private boolean actionBarEnabled;
     private String actionBarFormat;
     private boolean disableFlightWhenEmpty;
@@ -132,6 +135,9 @@ public final class MMMFlightPlugin extends JavaPlugin {
         defaultMaxPoints = Math.max(0, config.getInt("flight.default-max-points", 1000));
         baseCostPerTick = Math.max(0, config.getInt("flight.base-cost-per-tick", 1));
         chargeIntervalTicks = Math.max(1, config.getInt("flight.charge-interval-ticks", 20));
+        flightDeductGracePeriodTicks = Math.max(0, config.getInt("flight.deduct.grace-period-ticks", 20));
+        flightDeductGracePeriodCooldownTicks = Math.max(0, config.getInt("flight.deduct.grace-period-cooldown-ticks", 100));
+        flightDeductActiveOnlyPermission = config.getString("flight.deduct.active-flight-only-permission", "mmmflight.deduct.active-only");
         actionBarEnabled = config.getBoolean("actionbar.enabled", true);
         actionBarFormat = config.getString("actionbar.format", "&b飞行点数: &f%points%&7/&f%max%");
         disableFlightWhenEmpty = config.getBoolean("flight.disable-flight-when-empty", true);
@@ -144,7 +150,7 @@ public final class MMMFlightPlugin extends JavaPlugin {
         loadConsumeMultipliers(config);
         bossBarEnabled = config.getBoolean("bossbar.enabled", true);
         bossBarShowWhenIdle = config.getBoolean("bossbar.show-when-idle", false);
-        bossBarTitle = config.getString("bossbar.title", "&b飞行能量: &f%points%&7/&f%max% %cost_display% &8(&f%percent%%%&8)");
+        bossBarTitle = config.getString("bossbar.title", "&b飞行能量: &f%points%&7/&f%max% %cost_display% &8(&f%percent%%&8)");
         bossBarCostAnimationEnabled = config.getBoolean("bossbar.cost-animation.enabled", true);
         bossBarCostAnimationIntervalTicks = Math.max(1, config.getInt("bossbar.cost-animation.blink-interval-ticks", 5));
         bossBarCostHighlightDurationTicks = Math.max(1, config.getInt("bossbar.cost-animation.highlight-duration-ticks", 12));
@@ -265,6 +271,18 @@ public final class MMMFlightPlugin extends JavaPlugin {
 
     public int getChargeIntervalTicks() {
         return chargeIntervalTicks;
+    }
+
+    public int getFlightDeductGracePeriodTicks() {
+        return flightDeductGracePeriodTicks;
+    }
+
+    public int getFlightDeductGracePeriodCooldownTicks() {
+        return flightDeductGracePeriodCooldownTicks;
+    }
+
+    public String getFlightDeductActiveOnlyPermission() {
+        return flightDeductActiveOnlyPermission;
     }
 
     public boolean isActionBarEnabled() {
@@ -576,6 +594,9 @@ public final class MMMFlightPlugin extends JavaPlugin {
         }
         if (rechargeIgnoreItemLimitPermission != null && !rechargeIgnoreItemLimitPermission.isBlank()) {
             currentPermissions.add(rechargeIgnoreItemLimitPermission);
+        }
+        if (flightDeductActiveOnlyPermission != null && !flightDeductActiveOnlyPermission.isBlank()) {
+            currentPermissions.add(flightDeductActiveOnlyPermission);
         }
 
         for (String oldPermission : new HashSet<>(registeredLimitPermissions)) {

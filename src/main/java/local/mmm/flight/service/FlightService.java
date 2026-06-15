@@ -29,6 +29,8 @@ public final class FlightService {
     private final Map<UUID, FlightAccount> cache = new ConcurrentHashMap<>();
     private final Map<UUID, BossBar> bossBars = new ConcurrentHashMap<>();
     private final Map<UUID, Long> costHighlightUntilTick = new ConcurrentHashMap<>();
+    private final Map<UUID, Long> graceUntilTick = new ConcurrentHashMap<>();
+    private final Map<UUID, Long> lastGraceGrantedTick = new ConcurrentHashMap<>();
     private final java.util.Set<UUID> dirtyAccounts = ConcurrentHashMap.newKeySet();
     private final AtomicLong flightTickCounter = new AtomicLong();
     private final AtomicLong animationTickCounter = new AtomicLong();
@@ -66,6 +68,8 @@ public final class FlightService {
         this.luckPermsHook = newLuckPermsHook;
         this.cache.clear();
         this.dirtyAccounts.clear();
+        this.graceUntilTick.clear();
+        this.lastGraceGrantedTick.clear();
         this.costHighlightUntilTick.clear();
         this.flightTickCounter.set(0L);
         this.animationTickCounter.set(0L);
@@ -89,6 +93,8 @@ public final class FlightService {
         bossBars.values().forEach(BossBar::removeAll);
         bossBars.clear();
         dirtyAccounts.clear();
+        graceUntilTick.clear();
+        lastGraceGrantedTick.clear();
         costHighlightUntilTick.clear();
         flightTickCounter.set(0L);
         animationTickCounter.set(0L);
@@ -123,6 +129,8 @@ public final class FlightService {
             storage.saveAccount(account);
         }
         costHighlightUntilTick.remove(uuid);
+        graceUntilTick.remove(uuid);
+        lastGraceGrantedTick.remove(uuid);
         hideBossBar(player);
     }
 
@@ -479,6 +487,7 @@ public final class FlightService {
             return false;
         }
         player.setAllowFlight(true);
+        grantDeductGracePeriod(player);
         updateBossBar(player);
         player.sendMessage(plugin.message("flight-enabled"));
         return true;
@@ -488,6 +497,7 @@ public final class FlightService {
         player.setFlying(false);
         player.setAllowFlight(false);
         costHighlightUntilTick.remove(player.getUniqueId());
+        graceUntilTick.remove(player.getUniqueId());
         hideBossBar(player);
         if (message != null && !message.isEmpty()) {
             player.sendMessage(message);
@@ -505,7 +515,7 @@ public final class FlightService {
                 continue;
             }
             syncFlightState(player);
-            if (!player.isFlying() || player.hasPermission("mmmflight.bypass.consume")) {
+            if (!shouldDeductFlightPoints(player) || player.hasPermission("mmmflight.bypass.consume")) {
                 tryRegen(player, currentTick);
                 sendActionBar(player);
                 updateBossBar(player);
@@ -648,6 +658,44 @@ public final class FlightService {
         }
         if (animationTickCounter.get() > untilTick) {
             costHighlightUntilTick.remove(player.getUniqueId());
+            return false;
+        }
+        return true;
+    }
+
+    private void grantDeductGracePeriod(Player player) {
+        int graceTicks = plugin.getFlightDeductGracePeriodTicks();
+        if (graceTicks <= 0) {
+            return;
+        }
+        long now = animationTickCounter.get();
+        int cooldownTicks = plugin.getFlightDeductGracePeriodCooldownTicks();
+        Long lastGranted = lastGraceGrantedTick.get(player.getUniqueId());
+        if (lastGranted != null && cooldownTicks > 0 && now - lastGranted < cooldownTicks) {
+            return;
+        }
+        lastGraceGrantedTick.put(player.getUniqueId(), now);
+        graceUntilTick.put(player.getUniqueId(), now + graceTicks);
+    }
+
+    private boolean shouldDeductFlightPoints(Player player) {
+        if (isInDeductGracePeriod(player)) {
+            return false;
+        }
+        String activeOnlyPermission = plugin.getFlightDeductActiveOnlyPermission();
+        if (activeOnlyPermission != null && !activeOnlyPermission.isBlank() && player.hasPermission(activeOnlyPermission)) {
+            return player.isFlying();
+        }
+        return player.getAllowFlight() || player.isFlying();
+    }
+
+    private boolean isInDeductGracePeriod(Player player) {
+        Long untilTick = graceUntilTick.get(player.getUniqueId());
+        if (untilTick == null) {
+            return false;
+        }
+        if (animationTickCounter.get() > untilTick) {
+            graceUntilTick.remove(player.getUniqueId());
             return false;
         }
         return true;

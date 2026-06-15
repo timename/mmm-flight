@@ -1,7 +1,7 @@
 # =========================================================
 # MMMFlight 主配置文件
 # 作者: Xiaomenxin
-# 版本: 1.8.4
+# 版本: 1.8.5
 # =========================================================
 #
 # 说明:
@@ -39,6 +39,14 @@ flight:
 
   # 20 tick = 1 秒
   charge-interval-ticks: 20
+
+  deduct:
+    # 开启飞行模式后的防抖时间，20 tick = 1 秒；0 表示关闭防抖
+    grace-period-ticks: 20
+    # 防抖冷却，避免玩家反复开关飞行刷新免费时间；100 tick = 5 秒
+    grace-period-cooldown-ticks: 100
+    # 拥有该权限的玩家，只有真正处于飞行状态时才扣点；没有该权限则开启飞行模式后即扣点
+    active-flight-only-permission: mmmflight.deduct.active-only
 
   # 玩家没有任何 mmmflight.limit.xxx 节点时使用这个上限
   default-max-points: 1000
@@ -180,7 +188,7 @@ bossbar:
   # %cost%         = 当前这次实际扣除值（纯数字）
   # %cost_display% = 当前扣除显示文本（带减号与颜色效果）
   # %percent%      = 当前百分比
-  title: "&b飞行能量: &f%points%&7/&f%max% %cost_display% &8(&f%percent%%%&8)"
+  title: "&b飞行能量: &f%points%&7/&f%max% %cost_display% &8(&f%percent%%&8)"
 
   cost-animation:
     # 是否启用扣费高亮效果。
