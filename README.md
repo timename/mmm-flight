@@ -1,4 +1,4 @@
-# MMMFlight 1.5.6
+# MMMFlight 1.6.0
 
 适用于 Purpur `1.21.10` 的飞行能量插件，支持 Velocity 多子服场景。
 
@@ -285,7 +285,7 @@ BossBar 支持变量:
 将构建产物放入每个 Purpur 子服的 `plugins` 目录:
 
 ```text
-target/mmm-flight-1.5.6.jar
+target/mmm-flight-1.6.0.jar
 ```
 
 首次启动后会自动生成:
