@@ -377,7 +377,6 @@ public final class FlightService {
                 .replace("%can_ignore_item_limit%", formatBoolean(preview.canIgnoreItemLimit()))
                 .replace("%ignore_item_limit_text%", getIgnoreItemLimitText(preview.canIgnoreItemLimit()))
                 .replace("%item_limit_ignored%", formatBoolean(preview.itemLimitIgnored()))
-                .replace("%item_limit_ignored_text%", getItemLimitIgnoredText(preview.itemLimitIgnored()))
                 .replace("%max_required%", String.valueOf(preview.maxRequired()))
                 .replace("%status%", getRechargeStatusText(preview));
     }
@@ -403,10 +402,6 @@ public final class FlightService {
 
     public String getIgnoreItemLimitText(boolean canIgnore) {
         return plugin.message(canIgnore ? "recharge-ignore-item-limit-yes" : "recharge-ignore-item-limit-no");
-    }
-
-    public String getItemLimitIgnoredText(boolean itemLimitIgnored) {
-        return plugin.message(itemLimitIgnored ? "recharge-item-limit-ignored-yes" : "recharge-item-limit-ignored-no");
     }
 
     private String getRewardModeText(RechargeItem item) {

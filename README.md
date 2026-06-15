@@ -1,4 +1,4 @@
-# MMMFlight 1.8.2
+# MMMFlight 1.8.3
 
 适用于 Purpur `1.21.10` 的飞行能量插件，支持 Velocity 多子服场景。
 
@@ -309,7 +309,6 @@ LuckPerms 示例:
 - `can` 是否可以充能，返回 `true` 或 `false`
 - `status` 当前状态文本
 - `item_limit_ignored` 当前是否正在无视该物品普通上限，返回 `true` 或 `false`
-- `item_limit_ignored_text` 当前单个物品上限状态文本，例如 `正常单个物品上限` 或 `可无视单个物品上限充能`
 - `normal_limit` 该物品普通每日上限
 
 示例:
@@ -323,7 +322,6 @@ LuckPerms 示例:
 %mmmflight_recharge_available_sugar_cane%
 %mmmflight_recharge_reward_sugar_cane%
 %mmmflight_recharge_item_limit_ignored_sugar_cane%
-%mmmflight_recharge_item_limit_ignored_text_sugar_cane%
 %mmmflight_recharge_status_sugar_cane%
 ```
 
@@ -407,7 +405,7 @@ BossBar 支持变量:
 将构建产物放入每个 Purpur 子服的 `plugins` 目录:
 
 ```text
-target/mmm-flight-1.8.2.jar
+target/mmm-flight-1.8.3.jar
 ```
 
 首次启动后会自动生成:
