@@ -1,4 +1,4 @@
-# MMMFlight 1.6.0
+# MMMFlight 1.7.0
 
 适用于 Purpur `1.21.10` 的飞行能量插件，支持 Velocity 多子服场景。
 
@@ -130,14 +130,17 @@ recharge:
   items:
     rotten_flesh:
       material: ROTTEN_FLESH
+      display-name: 腐肉
       base-cost: 32
 
     pumpkin:
       material: PUMPKIN
+      display-name: 南瓜
       base-cost: 16
 
     sugar_cane:
       material: SUGAR_CANE
+      display-name: 甘蔗
       base-cost: 32
 ```
 
@@ -148,6 +151,7 @@ recharge:
   items:
     cactus:
       material: CACTUS
+      display-name: 仙人掌
       base-cost: 24
       daily-limit: 3
       cost-multiplier: 2.0
@@ -204,6 +208,46 @@ LuckPerms 示例:
   当前剩余百分比
 - `%mmmflight_server_id%`
   当前插件读取到的 `server-id`
+
+充能总次数变量:
+
+- `%mmmflight_recharge_total_used%`
+  今日总充能已用次数
+- `%mmmflight_recharge_total_limit%`
+  今日总充能上限
+- `%mmmflight_recharge_total_remaining%`
+  今日总剩余充能次数
+
+充能物品变量使用 `recharge.items` 中的物品 Key。格式为:
+
+```text
+%mmmflight_recharge_<字段>_<物品Key>%
+```
+
+可用字段:
+
+- `name` 配置的显示名
+- `material` Bukkit 材质名
+- `used` 该物品今日已用次数
+- `limit` 该物品每日上限
+- `remaining` 该物品今日剩余次数
+- `required` 下一次需要消耗的数量
+- `reward` 下一次实际可获得的飞行点数
+- `available` 玩家背包当前拥有数量
+- `can` 是否可以充能，返回 `true` 或 `false`
+- `status` 当前状态文本
+
+示例:
+
+```text
+%mmmflight_recharge_name_sugar_cane%
+%mmmflight_recharge_used_sugar_cane%
+%mmmflight_recharge_limit_sugar_cane%
+%mmmflight_recharge_required_sugar_cane%
+%mmmflight_recharge_available_sugar_cane%
+%mmmflight_recharge_reward_sugar_cane%
+%mmmflight_recharge_status_sugar_cane%
+```
 
 这些变量可用于全服记分板、菜单、广播、跨服展示等场景。
 
@@ -285,7 +329,7 @@ BossBar 支持变量:
 将构建产物放入每个 Purpur 子服的 `plugins` 目录:
 
 ```text
-target/mmm-flight-1.6.0.jar
+target/mmm-flight-1.7.0.jar
 ```
 
 首次启动后会自动生成:

@@ -162,7 +162,9 @@ public final class FlightCommand implements CommandExecutor, TabCompleter {
                 player.sendMessage(flightService.getRechargeSummary(player));
                 return true;
             }
-            player.sendMessage(flightService.getRechargeInfo(player, args[2]));
+            for (String line : flightService.getRechargeInfo(player, args[2])) {
+                player.sendMessage(line);
+            }
             return true;
         }
         flightService.recharge(player, args[1]);

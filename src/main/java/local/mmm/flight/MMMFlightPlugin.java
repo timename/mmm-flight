@@ -210,6 +210,21 @@ public final class MMMFlightPlugin extends JavaPlugin {
         return colorize(languageConfig.getString(path, path));
     }
 
+    public List<String> messages(String path) {
+        if (languageConfig == null) {
+            return List.of(colorize(path));
+        }
+        List<String> values = languageConfig.getStringList(path);
+        if (values.isEmpty()) {
+            return List.of(message(path));
+        }
+        List<String> colored = new ArrayList<>();
+        for (String value : values) {
+            colored.add(colorize(value));
+        }
+        return colored;
+    }
+
     public String colorize(String input) {
         if (input == null) {
             return "";
@@ -468,11 +483,12 @@ public final class MMMFlightPlugin extends JavaPlugin {
                 continue;
             }
             int baseCost = Math.max(1, section.getInt("base-cost", 32));
+            String displayName = colorize(section.getString("display-name", key));
             double multiplier = Math.max(0.0D, section.getDouble("cost-multiplier", rechargeDefaultCostMultiplier));
             int dailyLimit = Math.max(0, section.getInt("daily-limit", rechargeDefaultPerItemLimit));
             RechargeItem.RewardMode rewardMode = parseRewardMode(section.getString("reward.mode", rechargeDefaultRewardMode.name()));
             double rewardAmount = Math.max(0.0D, section.getDouble("reward.amount", rechargeDefaultRewardAmount));
-            rechargeItems.put(key.toLowerCase(), new RechargeItem(key.toLowerCase(), material, baseCost, multiplier, dailyLimit, rewardMode, rewardAmount));
+            rechargeItems.put(key.toLowerCase(), new RechargeItem(key.toLowerCase(), displayName, material, baseCost, multiplier, dailyLimit, rewardMode, rewardAmount));
         }
     }
 

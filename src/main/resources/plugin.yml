@@ -1,5 +1,5 @@
 name: MMMFlight
-version: 1.6.0
+version: 1.7.0
 main: local.mmm.flight.MMMFlightPlugin
 api-version: "1.21"
 author: Xiaomenxin

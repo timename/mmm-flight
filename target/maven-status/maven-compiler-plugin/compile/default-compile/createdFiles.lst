@@ -2,6 +2,8 @@ local\mmm\flight\command\FlyCommand.class
 local\mmm\flight\storage\FlightStorage.class
 local\mmm\flight\storage\MysqlFlightStorage.class
 local\mmm\flight\model\RechargeItem$RewardMode.class
+local\mmm\flight\model\RechargePreview$RechargeStatus.class
+local\mmm\flight\service\FlightService$1.class
 local\mmm\flight\hook\LuckPermsHook.class
 local\mmm\flight\command\FlightCommand.class
 local\mmm\flight\storage\YamlFlightStorage.class
@@ -10,5 +12,6 @@ local\mmm\flight\model\FlightAccount.class
 local\mmm\flight\placeholder\FlightPlaceholderExpansion.class
 local\mmm\flight\model\RechargeItem.class
 local\mmm\flight\service\FlightService.class
+local\mmm\flight\model\RechargePreview.class
 local\mmm\flight\model\FlightProfile.class
 local\mmm\flight\MMMFlightPlugin.class

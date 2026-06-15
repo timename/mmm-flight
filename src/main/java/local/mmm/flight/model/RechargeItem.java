@@ -4,6 +4,7 @@ import org.bukkit.Material;
 
 public record RechargeItem(
         String key,
+        String displayName,
         Material material,
         int baseCost,
         double costMultiplier,

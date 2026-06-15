@@ -10,6 +10,8 @@ import local.mmm.flight.hook.LuckPermsHook;
 import local.mmm.flight.model.FlightAccount;
 import local.mmm.flight.model.FlightProfile;
 import local.mmm.flight.model.RechargeItem;
+import local.mmm.flight.model.RechargePreview;
+import local.mmm.flight.model.RechargePreview.RechargeStatus;
 import local.mmm.flight.storage.FlightStorage;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
@@ -171,71 +173,62 @@ public final class FlightService {
     }
 
     public boolean recharge(Player player, String key) {
-        if (!plugin.isRechargeEnabled()) {
+        RechargePreview preview = previewRecharge(player, key);
+        if (preview.status() == RechargeStatus.DISABLED) {
             player.sendMessage(plugin.message("recharge-disabled"));
             return false;
         }
-        RechargeItem item = plugin.getRechargeItem(normalizeRechargeKey(key));
-        if (item == null) {
+        if (preview.status() == RechargeStatus.UNKNOWN_ITEM) {
             player.sendMessage(plugin.message("recharge-unknown")
                     .replace("%item%", key == null ? "" : key));
             return false;
         }
+        if (preview.status() == RechargeStatus.FULL) {
+            player.sendMessage(plugin.message("recharge-full")
+                    .replace("%points%", String.valueOf(preview.points()))
+                    .replace("%max%", String.valueOf(preview.maxPoints())));
+            return false;
+        }
+        if (preview.status() == RechargeStatus.TOTAL_LIMIT) {
+            player.sendMessage(plugin.message("recharge-total-limit")
+                    .replace("%used%", String.valueOf(preview.totalUsed()))
+                    .replace("%limit%", String.valueOf(preview.totalLimit())));
+            return false;
+        }
+        if (preview.status() == RechargeStatus.ITEM_LIMIT) {
+            player.sendMessage(plugin.message("recharge-item-limit")
+                    .replace("%item%", preview.item().displayName())
+                    .replace("%used%", String.valueOf(preview.itemUsed()))
+                    .replace("%limit%", String.valueOf(preview.itemLimit())));
+            return false;
+        }
+        if (preview.status() == RechargeStatus.NOT_ENOUGH) {
+            player.sendMessage(plugin.message("recharge-not-enough")
+                    .replace("%item%", preview.item().displayName())
+                    .replace("%required%", String.valueOf(preview.required()))
+                    .replace("%available%", String.valueOf(preview.available())));
+            return false;
+        }
 
         FlightAccount account = getAccount(player.getUniqueId());
+        removeItems(player, preview.item(), preview.required());
+        int actualReward = Math.max(0, preview.afterPoints() - preview.points());
+        account.setPoints(preview.afterPoints());
+        account.incrementRechargeCount(preview.item().key());
         resetRechargeIfNeeded(account);
-        int maxPoints = getMaxPoints(player);
-        int current = account.getPoints();
-        if (current >= maxPoints) {
-            player.sendMessage(plugin.message("recharge-full")
-                    .replace("%points%", String.valueOf(current))
-                    .replace("%max%", String.valueOf(maxPoints)));
-            return false;
-        }
-        if (plugin.getRechargeDailyTotalLimit() > 0 && account.getDailyRechargeTotal() >= plugin.getRechargeDailyTotalLimit()) {
-            player.sendMessage(plugin.message("recharge-total-limit")
-                    .replace("%used%", String.valueOf(account.getDailyRechargeTotal()))
-                    .replace("%limit%", String.valueOf(plugin.getRechargeDailyTotalLimit())));
-            return false;
-        }
-        int usedItemCount = account.getDailyRechargeCount(item.key());
-        if (item.dailyLimit() > 0 && usedItemCount >= item.dailyLimit()) {
-            player.sendMessage(plugin.message("recharge-item-limit")
-                    .replace("%item%", item.key())
-                    .replace("%used%", String.valueOf(usedItemCount))
-                    .replace("%limit%", String.valueOf(item.dailyLimit())));
-            return false;
-        }
-
-        int required = getRequiredRechargeAmount(item, usedItemCount);
-        int available = countItems(player, item);
-        if (available < required) {
-            player.sendMessage(plugin.message("recharge-not-enough")
-                    .replace("%item%", item.key())
-                    .replace("%required%", String.valueOf(required))
-                    .replace("%available%", String.valueOf(available)));
-            return false;
-        }
-
-        int reward = calculateRechargeReward(item, maxPoints);
-        int newPoints = Math.min(maxPoints, current + reward);
-        int actualReward = Math.max(0, newPoints - current);
-        removeItems(player, item, required);
-        account.setPoints(newPoints);
-        account.incrementRechargeCount(item.key());
         storage.saveAccount(account);
         syncFlightState(player);
         updateBossBar(player);
         player.sendMessage(plugin.message("recharge-success")
-                .replace("%item%", item.key())
-                .replace("%cost%", String.valueOf(required))
+                .replace("%item%", preview.item().displayName())
+                .replace("%cost%", String.valueOf(preview.required()))
                 .replace("%amount%", String.valueOf(actualReward))
-                .replace("%points%", String.valueOf(newPoints))
-                .replace("%max%", String.valueOf(maxPoints))
+                .replace("%points%", String.valueOf(preview.afterPoints()))
+                .replace("%max%", String.valueOf(preview.maxPoints()))
                 .replace("%total_used%", String.valueOf(account.getDailyRechargeTotal()))
-                .replace("%total_limit%", String.valueOf(plugin.getRechargeDailyTotalLimit()))
-                .replace("%item_used%", String.valueOf(account.getDailyRechargeCount(item.key())))
-                .replace("%item_limit%", String.valueOf(item.dailyLimit())));
+                .replace("%total_limit%", String.valueOf(preview.totalLimit()))
+                .replace("%item_used%", String.valueOf(account.getDailyRechargeCount(preview.item().key())))
+                .replace("%item_limit%", String.valueOf(preview.itemLimit())));
         return true;
     }
 
@@ -245,25 +238,141 @@ public final class FlightService {
         return plugin.message("recharge-summary")
                 .replace("%used%", String.valueOf(account.getDailyRechargeTotal()))
                 .replace("%limit%", String.valueOf(plugin.getRechargeDailyTotalLimit()))
-                .replace("%items%", String.join(", ", plugin.getRechargeItems().keySet()));
+                .replace("%items%", plugin.getRechargeItems().values().stream()
+                        .map(RechargeItem::displayName)
+                        .reduce((left, right) -> left + ", " + right)
+                        .orElse(""));
     }
 
-    public String getRechargeInfo(Player player, String key) {
+    public java.util.List<String> getRechargeInfo(Player player, String key) {
+        RechargePreview preview = previewRecharge(player, key);
+        if (preview.status() == RechargeStatus.UNKNOWN_ITEM) {
+            return java.util.List.of(plugin.message("recharge-unknown").replace("%item%", key == null ? "" : key));
+        }
+        java.util.List<String> rendered = new java.util.ArrayList<>();
+        for (String line : plugin.messages("recharge-info-detail")) {
+            rendered.add(applyRechargePlaceholders(line, preview));
+        }
+        return rendered;
+    }
+
+    public RechargePreview previewRecharge(Player player, String key) {
+        return previewRecharge(player, key, true);
+    }
+
+    public RechargePreview previewRecharge(OfflinePlayer offlinePlayer, String key) {
+        Player online = offlinePlayer == null ? null : Bukkit.getPlayer(offlinePlayer.getUniqueId());
+        return previewRecharge(online, key, online != null);
+    }
+
+    public String getRechargeStatusText(RechargePreview preview) {
+        return switch (preview.status()) {
+            case CAN_RECHARGE -> plugin.message("recharge-status-can");
+            case DISABLED -> plugin.message("recharge-status-disabled");
+            case UNKNOWN_ITEM -> plugin.message("recharge-status-unknown");
+            case FULL -> plugin.message("recharge-status-full");
+            case TOTAL_LIMIT -> plugin.message("recharge-status-total-limit");
+            case ITEM_LIMIT -> plugin.message("recharge-status-item-limit");
+            case NOT_ENOUGH -> plugin.message("recharge-status-not-enough")
+                    .replace("%shortage%", String.valueOf(preview.shortage()))
+                    .replace("%item%", preview.item() == null ? "" : preview.item().displayName());
+            case OFFLINE -> plugin.message("recharge-status-offline");
+        };
+    }
+
+    private RechargePreview previewRecharge(Player player, String key, boolean includeInventory) {
         RechargeItem item = plugin.getRechargeItem(normalizeRechargeKey(key));
         if (item == null) {
-            return plugin.message("recharge-unknown").replace("%item%", key == null ? "" : key);
+            return new RechargePreview(null, 0, 0, 0, 0, 0, 0, 0, 0, plugin.getRechargeDailyTotalLimit(), 0, 0, 0, 0, RechargeStatus.UNKNOWN_ITEM, 0);
         }
-        FlightAccount account = getAccount(player.getUniqueId());
-        resetRechargeIfNeeded(account);
-        int usedItemCount = account.getDailyRechargeCount(item.key());
-        return plugin.message("recharge-info")
-                .replace("%item%", item.key())
-                .replace("%used%", String.valueOf(usedItemCount))
-                .replace("%limit%", String.valueOf(item.dailyLimit()))
-                .replace("%total_used%", String.valueOf(account.getDailyRechargeTotal()))
-                .replace("%total_limit%", String.valueOf(plugin.getRechargeDailyTotalLimit()))
-                .replace("%required%", String.valueOf(getRequiredRechargeAmount(item, usedItemCount)))
-                .replace("%reward%", String.valueOf(calculateRechargeReward(item, getMaxPoints(player))));
+        if (!plugin.isRechargeEnabled()) {
+            return buildPreview(player, item, includeInventory, RechargeStatus.DISABLED);
+        }
+        if (player == null) {
+            return buildPreview(null, item, false, RechargeStatus.OFFLINE);
+        }
+
+        RechargePreview preview = buildPreview(player, item, includeInventory, RechargeStatus.CAN_RECHARGE);
+        if (preview.points() >= preview.maxPoints()) {
+            return buildPreview(player, item, includeInventory, RechargeStatus.FULL);
+        }
+        if (preview.totalLimit() > 0 && preview.totalUsed() >= preview.totalLimit()) {
+            return buildPreview(player, item, includeInventory, RechargeStatus.TOTAL_LIMIT);
+        }
+        if (preview.itemLimit() > 0 && preview.itemUsed() >= preview.itemLimit()) {
+            return buildPreview(player, item, includeInventory, RechargeStatus.ITEM_LIMIT);
+        }
+        if (preview.available() < preview.required()) {
+            return buildPreview(player, item, includeInventory, RechargeStatus.NOT_ENOUGH);
+        }
+        return preview;
+    }
+
+    private RechargePreview buildPreview(Player player, RechargeItem item, boolean includeInventory, RechargeStatus status) {
+        int points = 0;
+        int maxPoints = 0;
+        int percent = 0;
+        int totalUsed = 0;
+        int itemUsed = 0;
+        if (player != null) {
+            FlightAccount account = getAccount(player.getUniqueId());
+            resetRechargeIfNeeded(account);
+            points = account.getPoints();
+            maxPoints = getMaxPoints(player);
+            percent = getPercent(player);
+            totalUsed = account.getDailyRechargeTotal();
+            itemUsed = account.getDailyRechargeCount(item.key());
+        }
+        int totalLimit = plugin.getRechargeDailyTotalLimit();
+        int totalRemaining = totalLimit <= 0 ? 0 : Math.max(0, totalLimit - totalUsed);
+        int itemLimit = item.dailyLimit();
+        int itemRemaining = itemLimit <= 0 ? 0 : Math.max(0, itemLimit - itemUsed);
+        int required = getRequiredRechargeAmount(item, itemUsed);
+        int available = player != null && includeInventory ? countItems(player, item) : 0;
+        int reward = calculateRechargeReward(item, maxPoints);
+        int afterPoints = Math.min(maxPoints, points + reward);
+        int shortage = Math.max(0, required - available);
+        return new RechargePreview(item, points, maxPoints, percent, reward, afterPoints, required, available, totalUsed, totalLimit, totalRemaining, itemUsed, itemLimit, itemRemaining, status, shortage);
+    }
+
+    private String applyRechargePlaceholders(String line, RechargePreview preview) {
+        RechargeItem item = preview.item();
+        return line
+                .replace("%item_name%", item.displayName())
+                .replace("%item_key%", item.key())
+                .replace("%material%", item.material().name())
+                .replace("%points%", String.valueOf(preview.points()))
+                .replace("%max%", String.valueOf(preview.maxPoints()))
+                .replace("%percent%", String.valueOf(preview.percent()))
+                .replace("%reward_mode%", getRewardModeText(item))
+                .replace("%reward_value%", getRewardValueText(item))
+                .replace("%reward%", String.valueOf(Math.max(0, preview.afterPoints() - preview.points())))
+                .replace("%after_points%", String.valueOf(preview.afterPoints()))
+                .replace("%required%", String.valueOf(preview.required()))
+                .replace("%available%", String.valueOf(preview.available()))
+                .replace("%cost_multiplier%", formatDouble(item.costMultiplier()))
+                .replace("%base_cost%", String.valueOf(item.baseCost()))
+                .replace("%total_used%", String.valueOf(preview.totalUsed()))
+                .replace("%total_limit%", String.valueOf(preview.totalLimit()))
+                .replace("%total_remaining%", String.valueOf(preview.totalRemaining()))
+                .replace("%item_used%", String.valueOf(preview.itemUsed()))
+                .replace("%item_limit%", String.valueOf(preview.itemLimit()))
+                .replace("%item_remaining%", String.valueOf(preview.itemRemaining()))
+                .replace("%status%", getRechargeStatusText(preview));
+    }
+
+    private String getRewardModeText(RechargeItem item) {
+        if (item.rewardMode() == RechargeItem.RewardMode.FIXED) {
+            return plugin.message("recharge-reward-mode-fixed");
+        }
+        return plugin.message("recharge-reward-mode-percent");
+    }
+
+    private String getRewardValueText(RechargeItem item) {
+        if (item.rewardMode() == RechargeItem.RewardMode.FIXED) {
+            return formatDouble(item.rewardAmount()) + plugin.message("recharge-reward-unit-points");
+        }
+        return formatDouble(item.rewardAmount()) + "%";
     }
 
     public boolean canUseFlight(Player player) {
@@ -495,6 +604,13 @@ public final class FlightService {
             return Math.max(0, (int) Math.ceil(item.rewardAmount()));
         }
         return Math.max(0, (int) Math.ceil(Math.max(0, maxPoints) * item.rewardAmount() / 100.0D));
+    }
+
+    private String formatDouble(double value) {
+        if (value == Math.rint(value)) {
+            return String.valueOf((long) value);
+        }
+        return String.valueOf(value);
     }
 
     private int countItems(Player player, RechargeItem item) {
