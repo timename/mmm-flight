@@ -231,6 +231,8 @@ LuckPerms 示例:
 
 插件会读取玩家拥有的充能总次数节点，并使用其中最大的数值作为该玩家的每日总充能上限。默认 `16`，第二档 `32` 及以上会自动允许无视单个物品上限。
 
+注意: 插件只会实时判断玩家是否拥有第二档及以上充能总次数权限，或是否拥有 `mmmflight.recharge.ignore-item-limit`。插件不会自动给玩家添加 `mmmflight.recharge.ignore-item-limit`，也不会在玩家失去高档充能总次数权限后自动移除该权限。这个权限需要你通过 LuckPerms 手动管理。
+
 LuckPerms 示例:
 
 ```text
