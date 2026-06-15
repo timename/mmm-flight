@@ -1,4 +1,4 @@
-# MMMFlight 1.8.1
+# MMMFlight 1.8.2
 
 适用于 Purpur `1.21.10` 的飞行能量插件，支持 Velocity 多子服场景。
 
@@ -80,8 +80,10 @@
 
 ```text
 rotten_flesh
+bone
 pumpkin
 sugar_cane
+cactus
 ```
 
 默认限制:
@@ -99,8 +101,10 @@ sugar_cane
 
 ```text
 rotten_flesh: 16, 32, 64, 128
+bone:         16, 32, 64, 128
 pumpkin:      16, 32, 64, 128
 sugar_cane:   16, 32, 64, 128
+cactus:       16, 32, 64, 128
 ```
 
 如果玩家可无视单个物品上限，第 5 次及之后仍固定消耗最后一档。例如该物品第 4 次需要 `128`，无视上限后继续充能也始终需要 `128`。
@@ -109,16 +113,20 @@ Invero 菜单联动时，建议每个按钮直接执行一次固定命令:
 
 ```text
 flight recharge rotten_flesh
+flight recharge bone
 flight recharge pumpkin
 flight recharge sugar_cane
+flight recharge cactus
 ```
 
 如果菜单需要展示详情，可以使用:
 
 ```text
 flight recharge info rotten_flesh
+flight recharge info bone
 flight recharge info pumpkin
 flight recharge info sugar_cane
+flight recharge info cactus
 ```
 
 对应配置位于 `config.yml`:
@@ -158,6 +166,11 @@ recharge:
       display-name: 腐肉
       cost-tiers: [16, 32, 64, 128]
 
+    bone:
+      material: BONE
+      display-name: 骨头
+      cost-tiers: [16, 32, 64, 128]
+
     pumpkin:
       material: PUMPKIN
       display-name: 南瓜
@@ -167,6 +180,11 @@ recharge:
       material: SUGAR_CANE
       display-name: 甘蔗
       cost-tiers: [16, 32, 64, 128]
+
+    cactus:
+      material: CACTUS
+      display-name: 仙人掌
+      cost-tiers: [16, 32, 64, 128]
 ```
 
 单个物品可以覆盖默认每日次数、消耗档位和充能方式:
@@ -174,9 +192,9 @@ recharge:
 ```yml
 recharge:
   items:
-    cactus:
-      material: CACTUS
-      display-name: 仙人掌
+    spider_eye:
+      material: SPIDER_EYE
+      display-name: 蜘蛛眼
       daily-limit: 3
       cost-tiers: [24, 48, 96, 192]
       reward:
@@ -389,7 +407,7 @@ BossBar 支持变量:
 将构建产物放入每个 Purpur 子服的 `plugins` 目录:
 
 ```text
-target/mmm-flight-1.8.1.jar
+target/mmm-flight-1.8.2.jar
 ```
 
 首次启动后会自动生成:
