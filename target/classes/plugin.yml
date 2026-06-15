@@ -1,5 +1,5 @@
 name: MMMFlight
-version: 1.7.0
+version: 1.8.0
 main: local.mmm.flight.MMMFlightPlugin
 api-version: "1.21"
 author: Xiaomenxin
@@ -24,3 +24,5 @@ permissions:
     default: op
   mmmflight.bypass.server:
     default: op
+  mmmflight.recharge.ignore-item-limit:
+    default: false

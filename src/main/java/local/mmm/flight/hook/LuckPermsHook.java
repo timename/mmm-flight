@@ -28,21 +28,29 @@ public final class LuckPermsHook {
     }
 
     public int resolveMaxPoints(Player player) {
+        return resolveMaxValue(player, permissionPrefix, defaultMaxPoints);
+    }
+
+    public int resolveMaxValue(Player player, String prefix, int defaultValue) {
         return player.getEffectivePermissions().stream()
-                .filter(info -> info.getValue() && info.getPermission().startsWith(permissionPrefix))
-                .map(info -> info.getPermission().substring(permissionPrefix.length()))
+                .filter(info -> info.getValue() && info.getPermission().startsWith(prefix))
+                .map(info -> info.getPermission().substring(prefix.length()))
                 .filter(this::isNumeric)
                 .map(Integer::parseInt)
                 .max(Comparator.naturalOrder())
-                .orElse(defaultMaxPoints);
+                .orElse(defaultValue);
     }
 
     public int resolveMaxPoints(OfflinePlayer player) {
+        return resolveMaxValue(player, permissionPrefix, defaultMaxPoints);
+    }
+
+    public int resolveMaxValue(OfflinePlayer player, String prefix, int defaultValue) {
         if (player.isOnline() && player.getPlayer() != null) {
-            return resolveMaxPoints(player.getPlayer());
+            return resolveMaxValue(player.getPlayer(), prefix, defaultValue);
         }
         if (api == null || player.getUniqueId() == null) {
-            return defaultMaxPoints;
+            return defaultValue;
         }
 
         User user = api.getUserManager().getUser(player.getUniqueId());
@@ -50,7 +58,7 @@ public final class LuckPermsHook {
             user = api.getUserManager().loadUser(player.getUniqueId()).join();
         }
         if (user == null) {
-            return defaultMaxPoints;
+            return defaultValue;
         }
 
         QueryOptions options = api.getContextManager().getStaticQueryOptions();
@@ -58,12 +66,12 @@ public final class LuckPermsHook {
         return user.getNodes().stream()
                 .map(node -> node.getKey())
                 .filter(node -> permissionData.checkPermission(node).asBoolean())
-                .filter(node -> node.startsWith(permissionPrefix))
-                .map(node -> node.substring(permissionPrefix.length()))
+                .filter(node -> node.startsWith(prefix))
+                .map(node -> node.substring(prefix.length()))
                 .filter(this::isNumeric)
                 .map(Integer::parseInt)
                 .max(Comparator.naturalOrder())
-                .orElse(defaultMaxPoints);
+                .orElse(defaultValue);
     }
 
     private LuckPerms resolveApi() {

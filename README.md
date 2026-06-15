@@ -1,4 +1,4 @@
-# MMMFlight 1.7.0
+# MMMFlight 1.8.0
 
 适用于 Purpur `1.21.10` 的飞行能量插件，支持 Velocity 多子服场景。
 
@@ -14,6 +14,8 @@
 - 支持 ActionBar 单独开关。
 - 支持自动回复飞行点数，默认关闭。
 - 支持 PlaceholderAPI 跨服变量。
+- 支持按 LuckPerms 权限档位控制每日充能总次数。
+- 支持第二档及以上充能总次数玩家无视单物品上限，也可以单独发放无视上限权限。
 - 支持按 `默认 -> 服务器 -> 世界` 设置不同飞行能量消耗倍率。
 - 玩家切服进入子服时会自动从数据库重新读取飞行点数。
 - BossBar 的扣除值支持双色闪动显示。
@@ -80,18 +82,24 @@ sugar_cane
 
 默认限制:
 
-- 每个玩家每天最多总充能 `12` 次。
-- 每种物品默认每天最多充能 `5` 次。
+- 每个玩家每天默认最多总充能 `16` 次。
+- 每日总充能上限支持权限档位: `16`、`32`、`48`、`64`。
+- 每种物品默认每天最多充能 `4` 次。
+- 拥有第二档及以上每日总充能上限的玩家，可以无视单物品上限继续充能。
+- 也可以单独发放 `mmmflight.recharge.ignore-item-limit`，让指定玩家无视单物品上限。
 - 每种物品和每日总次数都会在 `Asia/Shanghai` 北京时间自然日 0 点刷新。
-- 每种物品的消耗量按次数翻倍，公式为 `base-cost * multiplier ^ 今日该物品已用次数`。
+- 每种物品默认有 4 个消耗档位，分别为 `16`、`32`、`64`、`128`。
+- 无视单物品上限后，消耗固定使用该物品最后一个消耗档位，不再增长。
 
 默认消耗示例:
 
 ```text
-rotten_flesh: 32, 64, 128, 256, 512
-pumpkin:      16, 32, 64, 128, 256
-sugar_cane:   32, 64, 128, 256, 512
+rotten_flesh: 16, 32, 64, 128
+pumpkin:      16, 32, 64, 128
+sugar_cane:   16, 32, 64, 128
 ```
+
+如果玩家可无视单物品上限，第 5 次及之后仍固定消耗最后一档。例如该物品第 4 次需要 `128`，无视上限后继续充能也始终需要 `128`。
 
 Invero 菜单联动时，建议每个按钮直接执行一次固定命令:
 
@@ -117,34 +125,47 @@ recharge:
   timezone: Asia/Shanghai
 
   limits:
-    daily-total: 12
-    per-item-default: 5
+    default-daily-total: 16
+    permission-prefix: mmmflight.recharge.limit.
+    presets:
+      - 16
+      - 32
+      - 48
+      - 64
+    ignore-item-limit-permission: mmmflight.recharge.ignore-item-limit
+    ignore-item-limit-from-total-limit: 32
+    per-item-default: 4
 
   reward-default:
     mode: percent
     amount: 25
 
   cost-default:
+    tiers:
+      - 16
+      - 32
+      - 64
+      - 128
     multiplier: 2.0
 
   items:
     rotten_flesh:
       material: ROTTEN_FLESH
       display-name: 腐肉
-      base-cost: 32
+      cost-tiers: [16, 32, 64, 128]
 
     pumpkin:
       material: PUMPKIN
       display-name: 南瓜
-      base-cost: 16
+      cost-tiers: [16, 32, 64, 128]
 
     sugar_cane:
       material: SUGAR_CANE
       display-name: 甘蔗
-      base-cost: 32
+      cost-tiers: [16, 32, 64, 128]
 ```
 
-单个物品可以覆盖默认每日次数、消耗倍率和充能方式:
+单个物品可以覆盖默认每日次数、消耗档位和充能方式:
 
 ```yml
 recharge:
@@ -152,9 +173,8 @@ recharge:
     cactus:
       material: CACTUS
       display-name: 仙人掌
-      base-cost: 24
       daily-limit: 3
-      cost-multiplier: 2.0
+      cost-tiers: [24, 48, 96, 192]
       reward:
         mode: fixed
         amount: 180
@@ -174,6 +194,8 @@ recharge:
   无视服务器限制
 - `mmmflight.bypass.world`
   无视世界限制
+- `mmmflight.recharge.ignore-item-limit`
+  无视单物品充能上限
 
 飞行上限权限:
 
@@ -196,6 +218,25 @@ LuckPerms 示例:
 如果你不喜欢这四档，可以直接修改或删除 `config.yml` 里的 `limits.presets`，然后给玩家发放对应的新权限节点即可。
 插件会自动把这些预设档位注册成权限节点，便于 LuckPerms 指令自动补全。
 
+充能总次数上限权限:
+
+- `mmmflight.recharge.limit.16`
+- `mmmflight.recharge.limit.32`
+- `mmmflight.recharge.limit.48`
+- `mmmflight.recharge.limit.64`
+
+插件会读取玩家拥有的充能总次数节点，并使用其中最大的数值作为该玩家的每日总充能上限。默认 `16`，第二档 `32` 及以上会自动允许无视单物品上限。
+
+LuckPerms 示例:
+
+```text
+/lp group default permission set mmmflight.recharge.limit.16 true
+/lp group vip permission set mmmflight.recharge.limit.32 true
+/lp group svip permission set mmmflight.recharge.limit.48 true
+/lp group mvp permission set mmmflight.recharge.limit.64 true
+/lp user 玩家名 permission set mmmflight.recharge.ignore-item-limit true
+```
+
 ## PlaceholderAPI 变量
 
 可用变量:
@@ -214,9 +255,15 @@ LuckPerms 示例:
 - `%mmmflight_recharge_total_used%`
   今日总充能已用次数
 - `%mmmflight_recharge_total_limit%`
-  今日总充能上限
+  今日总充能上限，按玩家权限档位计算
 - `%mmmflight_recharge_total_remaining%`
   今日总剩余充能次数
+- `%mmmflight_recharge_limit_tier%`
+  当前玩家生效的充能总次数档位
+- `%mmmflight_recharge_can_ignore_item_limit%`
+  是否可以无视单物品上限，返回 `true` 或 `false`
+- `%mmmflight_recharge_ignore_item_limit_text%`
+  是否可以无视单物品上限的文本
 
 充能物品变量使用 `recharge.items` 中的物品 Key。格式为:
 
@@ -232,10 +279,13 @@ LuckPerms 示例:
 - `limit` 该物品每日上限
 - `remaining` 该物品今日剩余次数
 - `required` 下一次需要消耗的数量
+- `max_required` 该物品最高档消耗数量
 - `reward` 下一次实际可获得的飞行点数
 - `available` 玩家背包当前拥有数量
 - `can` 是否可以充能，返回 `true` 或 `false`
 - `status` 当前状态文本
+- `item_limit_ignored` 当前是否正在无视该物品普通上限
+- `normal_limit` 该物品普通每日上限
 
 示例:
 
@@ -244,8 +294,10 @@ LuckPerms 示例:
 %mmmflight_recharge_used_sugar_cane%
 %mmmflight_recharge_limit_sugar_cane%
 %mmmflight_recharge_required_sugar_cane%
+%mmmflight_recharge_max_required_sugar_cane%
 %mmmflight_recharge_available_sugar_cane%
 %mmmflight_recharge_reward_sugar_cane%
+%mmmflight_recharge_item_limit_ignored_sugar_cane%
 %mmmflight_recharge_status_sugar_cane%
 ```
 
@@ -329,7 +381,7 @@ BossBar 支持变量:
 将构建产物放入每个 Purpur 子服的 `plugins` 目录:
 
 ```text
-target/mmm-flight-1.7.0.jar
+target/mmm-flight-1.8.0.jar
 ```
 
 首次启动后会自动生成:

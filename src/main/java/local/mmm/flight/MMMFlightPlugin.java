@@ -61,9 +61,14 @@ public final class MMMFlightPlugin extends JavaPlugin {
     private ZoneId rechargeZoneId;
     private int rechargeDailyTotalLimit;
     private int rechargeDefaultPerItemLimit;
+    private String rechargeLimitPermissionPrefix;
+    private List<Integer> rechargeLimitPresets;
+    private String rechargeIgnoreItemLimitPermission;
+    private int rechargeIgnoreItemLimitFromTotalLimit;
     private RechargeItem.RewardMode rechargeDefaultRewardMode;
     private double rechargeDefaultRewardAmount;
     private double rechargeDefaultCostMultiplier;
+    private List<Integer> rechargeDefaultCostTiers;
     private Map<String, RechargeItem> rechargeItems;
     private double defaultConsumeMultiplier;
     private Map<String, Double> serverConsumeMultipliers;
@@ -304,6 +309,18 @@ public final class MMMFlightPlugin extends JavaPlugin {
         return rechargeDailyTotalLimit;
     }
 
+    public String getRechargeLimitPermissionPrefix() {
+        return rechargeLimitPermissionPrefix;
+    }
+
+    public int getRechargeIgnoreItemLimitFromTotalLimit() {
+        return rechargeIgnoreItemLimitFromTotalLimit;
+    }
+
+    public String getRechargeIgnoreItemLimitPermission() {
+        return rechargeIgnoreItemLimitPermission;
+    }
+
     public Map<String, RechargeItem> getRechargeItems() {
         return Collections.unmodifiableMap(rechargeItems);
     }
@@ -461,11 +478,22 @@ public final class MMMFlightPlugin extends JavaPlugin {
     private void loadRechargeConfig(FileConfiguration config) {
         rechargeEnabled = config.getBoolean("recharge.enabled", true);
         rechargeZoneId = parseZoneId(config.getString("recharge.timezone", "Asia/Shanghai"));
-        rechargeDailyTotalLimit = Math.max(0, config.getInt("recharge.limits.daily-total", 12));
-        rechargeDefaultPerItemLimit = Math.max(0, config.getInt("recharge.limits.per-item-default", 5));
+        rechargeDailyTotalLimit = Math.max(0, config.getInt("recharge.limits.default-daily-total", config.getInt("recharge.limits.daily-total", 16)));
+        rechargeDefaultPerItemLimit = Math.max(0, config.getInt("recharge.limits.per-item-default", 4));
+        rechargeLimitPermissionPrefix = config.getString("recharge.limits.permission-prefix", "mmmflight.recharge.limit.");
+        rechargeLimitPresets = parseLimitPresets(config.getIntegerList("recharge.limits.presets"));
+        if (rechargeLimitPresets.isEmpty()) {
+            rechargeLimitPresets = List.of(16, 32, 48, 64);
+        }
+        rechargeIgnoreItemLimitPermission = config.getString("recharge.limits.ignore-item-limit-permission", "mmmflight.recharge.ignore-item-limit");
+        rechargeIgnoreItemLimitFromTotalLimit = Math.max(0, config.getInt("recharge.limits.ignore-item-limit-from-total-limit", 32));
         rechargeDefaultRewardMode = parseRewardMode(config.getString("recharge.reward-default.mode", "percent"));
         rechargeDefaultRewardAmount = Math.max(0.0D, config.getDouble("recharge.reward-default.amount", 25.0D));
         rechargeDefaultCostMultiplier = Math.max(0.0D, config.getDouble("recharge.cost-default.multiplier", 2.0D));
+        rechargeDefaultCostTiers = parsePositiveList(config.getIntegerList("recharge.cost-default.tiers"));
+        if (rechargeDefaultCostTiers.isEmpty()) {
+            rechargeDefaultCostTiers = List.of(16, 32, 64, 128);
+        }
         rechargeItems = new LinkedHashMap<>();
 
         ConfigurationSection itemsSection = config.getConfigurationSection("recharge.items");
@@ -485,10 +513,14 @@ public final class MMMFlightPlugin extends JavaPlugin {
             int baseCost = Math.max(1, section.getInt("base-cost", 32));
             String displayName = colorize(section.getString("display-name", key));
             double multiplier = Math.max(0.0D, section.getDouble("cost-multiplier", rechargeDefaultCostMultiplier));
+            List<Integer> costTiers = parsePositiveList(section.getIntegerList("cost-tiers"));
+            if (costTiers.isEmpty()) {
+                costTiers = rechargeDefaultCostTiers;
+            }
             int dailyLimit = Math.max(0, section.getInt("daily-limit", rechargeDefaultPerItemLimit));
             RechargeItem.RewardMode rewardMode = parseRewardMode(section.getString("reward.mode", rechargeDefaultRewardMode.name()));
             double rewardAmount = Math.max(0.0D, section.getDouble("reward.amount", rechargeDefaultRewardAmount));
-            rechargeItems.put(key.toLowerCase(), new RechargeItem(key.toLowerCase(), displayName, material, baseCost, multiplier, dailyLimit, rewardMode, rewardAmount));
+            rechargeItems.put(key.toLowerCase(), new RechargeItem(key.toLowerCase(), displayName, material, baseCost, multiplier, costTiers, dailyLimit, rewardMode, rewardAmount));
         }
     }
 
@@ -519,10 +551,14 @@ public final class MMMFlightPlugin extends JavaPlugin {
     }
 
     private List<Integer> parseLimitPresets(List<Integer> configuredPresets) {
+        return parsePositiveList(configuredPresets);
+    }
+
+    private List<Integer> parsePositiveList(List<Integer> configuredValues) {
         List<Integer> parsed = new ArrayList<>();
-        for (Integer preset : configuredPresets) {
-            if (preset != null && preset > 0) {
-                parsed.add(preset);
+        for (Integer value : configuredValues) {
+            if (value != null && value > 0) {
+                parsed.add(value);
             }
         }
         return parsed;
@@ -532,6 +568,12 @@ public final class MMMFlightPlugin extends JavaPlugin {
         Set<String> currentPermissions = new HashSet<>();
         for (Integer preset : limitPresets) {
             currentPermissions.add(limitPermissionPrefix + preset);
+        }
+        for (Integer preset : rechargeLimitPresets) {
+            currentPermissions.add(rechargeLimitPermissionPrefix + preset);
+        }
+        if (rechargeIgnoreItemLimitPermission != null && !rechargeIgnoreItemLimitPermission.isBlank()) {
+            currentPermissions.add(rechargeIgnoreItemLimitPermission);
         }
 
         for (String oldPermission : new HashSet<>(registeredLimitPermissions)) {

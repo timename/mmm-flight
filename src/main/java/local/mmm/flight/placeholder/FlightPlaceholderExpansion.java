@@ -61,11 +61,20 @@ public final class FlightPlaceholderExpansion extends PlaceholderExpansion {
             return String.valueOf(preview.totalUsed());
         }
         if ("recharge_total_limit".equals(params)) {
-            return String.valueOf(plugin.getRechargeDailyTotalLimit());
+            return String.valueOf(flightService.getRechargeDailyTotalLimit(player));
         }
         if ("recharge_total_remaining".equals(params)) {
             RechargePreview preview = flightService.previewRecharge(player, firstRechargeKey());
             return String.valueOf(preview.totalRemaining());
+        }
+        if ("recharge_can_ignore_item_limit".equals(params)) {
+            return String.valueOf(flightService.canIgnoreItemLimit(player));
+        }
+        if ("recharge_ignore_item_limit_text".equals(params)) {
+            return flightService.getIgnoreItemLimitText(flightService.canIgnoreItemLimit(player));
+        }
+        if ("recharge_limit_tier".equals(params)) {
+            return String.valueOf(flightService.getRechargeDailyTotalLimit(player));
         }
 
         String prefix = "recharge_";
@@ -83,7 +92,10 @@ public final class FlightPlaceholderExpansion extends PlaceholderExpansion {
                 "reward_",
                 "available_",
                 "can_",
-                "status_"
+                "status_",
+                "item_limit_ignored_",
+                "normal_limit_",
+                "max_required_"
         };
         for (String field : fields) {
             if (!body.startsWith(field)) {
@@ -105,6 +117,9 @@ public final class FlightPlaceholderExpansion extends PlaceholderExpansion {
                 case "available_" -> String.valueOf(preview.available());
                 case "can_" -> String.valueOf(preview.canRecharge());
                 case "status_" -> flightService.getRechargeStatusText(preview);
+                case "item_limit_ignored_" -> String.valueOf(preview.itemLimitIgnored());
+                case "normal_limit_" -> String.valueOf(preview.itemLimit());
+                case "max_required_" -> String.valueOf(preview.maxRequired());
                 default -> null;
             };
         }

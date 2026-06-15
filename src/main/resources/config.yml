@@ -1,7 +1,7 @@
 # =========================================================
 # MMMFlight 主配置文件
 # 作者: Xiaomenxin
-# 版本: 1.7.0
+# 版本: 1.8.0
 # =========================================================
 #
 # 说明:
@@ -63,11 +63,23 @@ recharge:
   timezone: Asia/Shanghai
 
   limits:
-    # 每个玩家每天最多充能总次数，0 表示不限制
-    daily-total: 12
+    # 玩家没有任何 mmmflight.recharge.limit.xxx 节点时使用这个每日总充能上限
+    default-daily-total: 16
+
+    # 每日总充能上限权限，插件会读取玩家拥有的最大数值档位
+    permission-prefix: mmmflight.recharge.limit.
+    presets:
+      - 16
+      - 32
+      - 48
+      - 64
+
+    # 拥有该权限，或每日总充能上限达到 ignore-item-limit-from-total-limit 时，可以无视单物品上限
+    ignore-item-limit-permission: mmmflight.recharge.ignore-item-limit
+    ignore-item-limit-from-total-limit: 32
 
     # 每种物品默认每天最多充能次数，0 表示不限制
-    per-item-default: 5
+    per-item-default: 4
 
   reward-default:
     # percent = 按玩家飞行点数上限百分比充能，fixed = 固定点数
@@ -76,24 +88,43 @@ recharge:
     amount: 25
 
   cost-default:
-    # 第 N 次消耗 = base-cost * multiplier ^ 今日已用次数
+    # 每个物品默认 4 个消耗档位；无视单物品上限后固定使用最后一档，不再增长
+    tiers:
+      - 16
+      - 32
+      - 64
+      - 128
+
+    # 兼容旧配置: 未配置 tiers 时，第 N 次消耗 = base-cost * multiplier ^ 今日已用次数
     multiplier: 2.0
 
   items:
     rotten_flesh:
       material: ROTTEN_FLESH
       display-name: 腐肉
-      base-cost: 32
+      cost-tiers:
+        - 16
+        - 32
+        - 64
+        - 128
 
     pumpkin:
       material: PUMPKIN
       display-name: 南瓜
-      base-cost: 16
+      cost-tiers:
+        - 16
+        - 32
+        - 64
+        - 128
 
     sugar_cane:
       material: SUGAR_CANE
       display-name: 甘蔗
-      base-cost: 32
+      cost-tiers:
+        - 16
+        - 32
+        - 64
+        - 128
 
 consume-multiplier:
   default: 1.0
