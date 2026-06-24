@@ -14,6 +14,7 @@ import java.util.logging.Level;
 import local.mmm.flight.command.FlightCommand;
 import local.mmm.flight.command.FlyCommand;
 import local.mmm.flight.hook.LuckPermsHook;
+import local.mmm.flight.hook.ResidenceHook;
 import local.mmm.flight.listener.FlightListener;
 import local.mmm.flight.model.RechargeItem;
 import local.mmm.flight.placeholder.FlightPlaceholderExpansion;
@@ -52,7 +53,10 @@ public final class MMMFlightPlugin extends JavaPlugin {
     private int flightDeductGracePeriodTicks;
     private int flightDeductGracePeriodCooldownTicks;
     private String flightDeductActiveOnlyPermission;
-    private boolean actionBarEnabled;
+    private boolean residenceCostEnabled;
+    private int residenceCostPerTick;
+    private boolean residenceOwnOnlyEnabled;
+    private String residenceOtherAllowedPermission;    private boolean actionBarEnabled;
     private String actionBarFormat;
     private boolean disableFlightWhenEmpty;
     private boolean regenEnabled;
@@ -89,6 +93,7 @@ public final class MMMFlightPlugin extends JavaPlugin {
     private Set<BarFlag> bossBarFlags;
     private FlightPlaceholderExpansion placeholderExpansion;
     private LuckPermsHook luckPermsHook;
+    private ResidenceHook residenceHook;
     private FileConfiguration languageConfig;
     private BukkitTask yamlFlushTask;
 
@@ -138,7 +143,14 @@ public final class MMMFlightPlugin extends JavaPlugin {
         flightDeductGracePeriodTicks = Math.max(0, config.getInt("flight.deduct.grace-period-ticks", 20));
         flightDeductGracePeriodCooldownTicks = Math.max(0, config.getInt("flight.deduct.grace-period-cooldown-ticks", 100));
         flightDeductActiveOnlyPermission = config.getString("flight.deduct.active-flight-only-permission", "mmmflight.deduct.active-only");
-        actionBarEnabled = config.getBoolean("actionbar.enabled", true);
+        residenceCostEnabled = config.getBoolean("flight.residence.enabled", true);
+        residenceCostPerTick = Math.max(0, config.getInt("flight.residence.cost-per-tick", 1));
+        residenceOwnOnlyEnabled = config.getBoolean("flight.residence.own-or-permitted-only", false);
+        residenceOtherAllowedPermission = config.getString("flight.residence.other-residence-permission", "mmmflight.residence.other-cost");
+        residenceHook = new ResidenceHook();
+        if (residenceCostEnabled && !residenceHook.isAvailable()) {
+            getLogger().info("Residence cost override is enabled, but Residence hook is not available. Normal flight cost will be used.");
+        }        actionBarEnabled = config.getBoolean("actionbar.enabled", true);
         actionBarFormat = config.getString("actionbar.format", "&b飞行点数: &f%points%&7/&f%max%");
         disableFlightWhenEmpty = config.getBoolean("flight.disable-flight-when-empty", true);
         regenEnabled = config.getBoolean("regen.enabled", false);
@@ -398,8 +410,31 @@ public final class MMMFlightPlugin extends JavaPlugin {
     }
 
     public int getEffectiveCost(Player player) {
+        if (shouldUseResidenceCost(player)) {
+            return residenceCostPerTick;
+        }
         double multiplier = getConsumeMultiplier(player.getWorld().getName());
         return Math.max(0, (int) Math.round(baseCostPerTick * multiplier));
+    }
+
+    private boolean shouldUseResidenceCost(Player player) {
+        if (!residenceCostEnabled || residenceHook == null || !residenceHook.isAvailable()) {
+            return false;
+        }
+        ResidenceHook.ResidenceContext context = residenceHook.getResidenceContext(player);
+        if (!context.insideResidence()) {
+            return false;
+        }
+        if (!residenceOwnOnlyEnabled) {
+            return true;
+        }
+        return context.ownResidence() || hasOtherResidenceCostPermission(player);
+    }
+
+    private boolean hasOtherResidenceCostPermission(Player player) {
+        return residenceOtherAllowedPermission != null
+            && !residenceOtherAllowedPermission.isBlank()
+            && player.hasPermission(residenceOtherAllowedPermission);
     }
 
     public double getConsumeMultiplier(String worldName) {
@@ -598,7 +633,9 @@ public final class MMMFlightPlugin extends JavaPlugin {
         if (flightDeductActiveOnlyPermission != null && !flightDeductActiveOnlyPermission.isBlank()) {
             currentPermissions.add(flightDeductActiveOnlyPermission);
         }
-
+        if (residenceOtherAllowedPermission != null && !residenceOtherAllowedPermission.isBlank()) {
+            currentPermissions.add(residenceOtherAllowedPermission);
+        }
         for (String oldPermission : new HashSet<>(registeredLimitPermissions)) {
             if (!currentPermissions.contains(oldPermission)) {
                 Bukkit.getPluginManager().removePermission(oldPermission);

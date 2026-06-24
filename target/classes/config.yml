@@ -1,7 +1,7 @@
 # =========================================================
 # MMMFlight 主配置文件
 # 作者: Xiaomenxin
-# 版本: 1.8.5
+# 版本: 1.9.0
 # =========================================================
 #
 # 说明:
@@ -39,6 +39,16 @@ flight:
 
   # 20 tick = 1 秒
   charge-interval-ticks: 20
+
+  residence:
+    # 开启后，玩家位于 Residence 领地内时使用独立扣点值，不再按服务器/世界倍率计算。
+    enabled: true
+    # 位于领地内每次扣除的飞行点数。
+    cost-per-tick: 1
+    # false = 任意领地都使用独立扣点；true = 仅自己的领地，或拥有下方权限时在别人领地也使用独立扣点。
+    own-or-permitted-only: false
+    # own-or-permitted-only 开启后，拥有该权限的玩家在别人领地也使用独立扣点。
+    other-residence-permission: mmmflight.residence.other-cost
 
   deduct:
     # 开启飞行模式后的防抖时间，20 tick = 1 秒；0 表示关闭防抖

@@ -1,4 +1,4 @@
-# MMMFlight 1.8.5
+# MMMFlight 1.9.0
 
 适用于 Purpur `1.21.10` 的飞行能量插件，支持 Velocity 多子服场景。
 
@@ -17,6 +17,7 @@
 - 支持按 LuckPerms 权限档位控制每日充能总次数。
 - 支持第二档及以上充能总次数玩家无视单个物品上限，也可以单独发放无视上限权限。
 - 支持按 `默认 -> 服务器 -> 世界` 设置不同飞行能量消耗倍率。
+- 支持 Residence 领地内独立飞行扣点，并可配置为仅自己的领地或拥有权限时在别人领地生效。
 - 玩家切服进入子服时会自动从数据库重新读取飞行点数。
 - BossBar 的扣除值支持双色闪动显示。
 - BossBar 扣费提示现在是“扣费后短暂高亮，再恢复常态颜色”的脉冲效果。
@@ -63,6 +64,21 @@
 拥有 `mmmflight.deduct.active-only` 权限的玩家，会使用更宽松的扣点规则: 只有真正双击空格并处于飞行状态时才消耗飞行点数。
 
 开启飞行模式后默认有 `1` 秒防抖时间，防抖期间不会扣点。为了避免玩家反复开关飞行刷新免费时间，防抖默认有 `5` 秒冷却。
+
+Residence 领地扣点规则:
+
+- `flight.residence.enabled` 开启后，玩家位于 Residence 领地内时使用 `cost-per-tick`，不再按服务器/世界倍率计算。
+- `own-or-permitted-only: false` 时，任意领地都使用独立扣点。
+- `own-or-permitted-only: true` 时，仅自己的领地使用独立扣点；在别人领地内，只有拥有 `other-residence-permission` 权限的玩家才使用独立扣点，否则按正常规则扣点。
+
+```yml
+flight:
+  residence:
+    enabled: true
+    cost-per-tick: 1
+    own-or-permitted-only: false
+    other-residence-permission: mmmflight.residence.other-cost
+```
 
 对应配置:
 
@@ -419,14 +435,23 @@ BossBar 支持变量:
 - 运行端: Purpur `1.21.10`
 - 权限插件: LuckPerms
 - 变量插件: PlaceholderAPI
+- 领地插件: Residence（可选，用于领地内独立飞行扣点）
 - 系统环境: 可运行于 Windows 和 Ubuntu，只要 Java 与服务端版本满足要求即可
+
+## 更新记录
+
+### 1.9.0
+
+- 新增 Residence 领地内独立飞行扣点配置，默认在领地内每次扣除 `1` 点。
+- 新增 `flight.residence.own-or-permitted-only` 开关，可限制独立扣点仅在自己领地生效。
+- 新增 `mmmflight.residence.other-cost` 权限，允许指定玩家在别人领地也使用领地独立扣点。
 
 ## 安装
 
 将构建产物放入每个 Purpur 子服的 `plugins` 目录:
 
 ```text
-target/mmm-flight-1.8.5.jar
+target/mmm-flight-1.9.0.jar
 ```
 
 首次启动后会自动生成:

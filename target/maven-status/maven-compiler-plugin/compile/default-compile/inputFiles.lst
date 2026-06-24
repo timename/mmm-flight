@@ -1,6 +1,7 @@
 E:\MCserver\git\MMM\mmm-flight\src\main\java\local\mmm\flight\command\FlightCommand.java
 E:\MCserver\git\MMM\mmm-flight\src\main\java\local\mmm\flight\command\FlyCommand.java
 E:\MCserver\git\MMM\mmm-flight\src\main\java\local\mmm\flight\hook\LuckPermsHook.java
+E:\MCserver\git\MMM\mmm-flight\src\main\java\local\mmm\flight\hook\ResidenceHook.java
 E:\MCserver\git\MMM\mmm-flight\src\main\java\local\mmm\flight\listener\FlightListener.java
 E:\MCserver\git\MMM\mmm-flight\src\main\java\local\mmm\flight\MMMFlightPlugin.java
 E:\MCserver\git\MMM\mmm-flight\src\main\java\local\mmm\flight\model\FlightAccount.java

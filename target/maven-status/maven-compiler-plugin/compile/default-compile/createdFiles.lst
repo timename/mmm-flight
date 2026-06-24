@@ -8,10 +8,12 @@ local\mmm\flight\hook\LuckPermsHook.class
 local\mmm\flight\command\FlightCommand.class
 local\mmm\flight\storage\YamlFlightStorage.class
 local\mmm\flight\listener\FlightListener.class
+local\mmm\flight\hook\ResidenceHook$ResidenceContext.class
 local\mmm\flight\model\FlightAccount.class
 local\mmm\flight\placeholder\FlightPlaceholderExpansion.class
 local\mmm\flight\model\RechargeItem.class
 local\mmm\flight\service\FlightService.class
+local\mmm\flight\hook\ResidenceHook.class
 local\mmm\flight\model\RechargePreview.class
 local\mmm\flight\model\FlightProfile.class
 local\mmm\flight\MMMFlightPlugin.class
